@@ -18,6 +18,7 @@ using fmesh::MeshC;
 
 
 bool useX11 = true;
+bool useX11text = false;
 int maxiter = 1;
 
 int predicates_test()
@@ -100,6 +101,105 @@ int mesh_test()
 }
 
 
+int LOP_test()
+{
+  int n = 0;
+  double S[14][3] = {{0.5,0.5,0},
+		     {0.5,0.6,0},
+		     {0.3,0.2,0},
+		     {0.3,0.6,0},
+		     {0.5,0.3,0},
+		     {0.6,0.7,0},
+		     {0.7,0.3,0},
+		     {0.2,0.8,0},
+		     {0.9,0.5,0},
+		     {0.1,0.1,0},
+		     {0.05,0.05,0},
+		     {0.95,0.05,0},
+		     {0.95,0.95,0},
+		     {0.05,0.95,0}};
+  double Sb[6][3] = {{0.,0.,0.},
+		     {1.,0.,0.},
+		     {0.,1.,0.},
+		     {1.0,1.,0.},
+		     {0.6,0.7,0.},
+		     {0.7,0.6,0.}};
+  int TVb[6][3] = {{0,1,2},
+		   {1,5,4},
+		   {1,4,2},
+		   {3,2,4},
+		   {3,4,5},
+		   {3,5,1}};
+  Mesh M(Mesh::Mtype_plane,0,true,false);
+  int t,vi,v;
+
+  if (useX11)
+    M.useX11(true,useX11text,500,500);
+
+  M.S_set(S,n);
+  M.S_append(Sb,6);
+  for (t=0;t<6;t++)
+    for (vi=0;vi<3;vi++)
+      TVb[t][vi] += n; 
+  M.TV_set(TVb,6);
+
+  MeshC MC(&M,true);
+
+  fmesh::triangleSetT triangles;
+  for (t=0;t<(int)M.nT();t++)
+    triangles.insert(t);
+  MC.LOP(triangles);
+
+  return 0;
+}
+
+
+int CDT_test()
+{
+  int n = 3;
+  double S[3][3] = {{0.3,0.6,0},
+		    {0.25,0.2,0},
+		     {0.85,0.75,0}};
+  double Sb[4][3] = {{0.,0.,0.},
+		     {1.,0.,0.},
+		     {0.,1.,0.},
+		     {1.,1.,0.}};
+  int TVb[2][3] = {{0,1,2},
+		   {3,2,1}};
+  Mesh M(Mesh::Mtype_plane,0,true,false);
+  int t,vi,v;
+
+  if (useX11)
+    M.useX11(true,useX11text,500,500);
+
+  M.S_set(S,n);
+  M.S_append(Sb,4);
+  for (t=0;t<2;t++)
+    for (vi=0;vi<3;vi++)
+      TVb[t][vi] += n; 
+  M.TV_set(TVb,2);
+
+  MeshC MC(&M,true);
+
+  fmesh::vertexListT vertices;
+  for (v=0;v<n;v++)
+    vertices.push_back(v);
+  MC.DT(vertices);
+
+  cout << M;
+
+  fmesh::constrListT cinp;
+  cinp.push_back(fmesh::constrT(1,2));
+  cinp.push_back(fmesh::constrT(3,6));
+  MC.CDTInterior(cinp);
+
+  MC.RCDT(1.415,100);
+  MC.RCDT(1.415,0.05);
+
+  return 0;
+}
+
+
 int DT2D_test()
 {
   int n = 14;
@@ -127,7 +227,7 @@ int DT2D_test()
   int t,vi,v;
 
   if (useX11)
-    M.useX11(true,false,500,500);
+    M.useX11(true,useX11text,500,500);
 
   M.S_set(S,n);
   M.S_append(Sb,4);
@@ -145,18 +245,17 @@ int DT2D_test()
 
   cout << M;
 
-  fmesh::constrListT cinp;
-  cinp.push_back(fmesh::constrT(10,11));
-  cinp.push_back(fmesh::constrT(11,12));
-  cinp.push_back(fmesh::constrT(12,13));
-  cinp.push_back(fmesh::constrT(13,10));
-  MC.CDTBoundary(cinp);
+  // fmesh::constrListT cinp;
+  // cinp.push_back(fmesh::constrT(10,11));
+  // cinp.push_back(fmesh::constrT(11,12));
+  // cinp.push_back(fmesh::constrT(12,13));
+  // cinp.push_back(fmesh::constrT(13,10));
+  // MC.CDTBoundary(cinp);
 
-  cinp.clear();
-  cinp.push_back(fmesh::constrT(10,12));
-  MC.CDTInterior(cinp);
+  // cinp.clear();
+  // cinp.push_back(fmesh::constrT(10,12));
+  // MC.CDTInterior(cinp);
 
-  //  M.useX11(useX11,false);
   MC.RCDT(1.415,100);
   MC.RCDT(1.415,0.05);
 
@@ -202,7 +301,7 @@ int DT2D_test2()
   int t,vi,v;
 
   if (useX11)
-    M.useX11(true,false,500,500);
+    M.useX11(true,useX11text,500,500);
 
   M.S_set(S,n);
   M.S_append(Sb,4);
@@ -221,8 +320,6 @@ int DT2D_test2()
 
   MC.CDT(fmesh::constrListT());
 
-  //  if (useX11)
-  //    M.useX11(true,false);
   MC.RCDT(1.415,100);
   MC.RCDT(1.415,0.05);
 
@@ -245,7 +342,7 @@ int DT2D_test3() /* Random points */
   int t,vi,v;
 
   if (useX11)
-    M.useX11(true,false,500,500);
+    M.useX11(true,useX11text,500,500);
 
   for (v=0;v<n;v++) {
     S[v][0] = double(std::rand())/RAND_MAX*0.9+0.05;
@@ -266,6 +363,11 @@ int DT2D_test3() /* Random points */
     vertices.push_back(v);
 
   MC.DT(vertices);
+
+  // fmesh::triangleSetT triangles;
+  // for (t=0;t<(int)M.nT();t++)
+  //   triangles.insert(t);
+  // MC.LOP(triangles);
 
   MC.RCDT(1.415,100);
   MC.RCDT(1.415,0.05);
@@ -303,7 +405,7 @@ int DTsphere_test()
   double l;
 
   if (useX11)
-    M.useX11(true,false,500,500,-1.05,1.05,-1.05,1.05);
+    M.useX11(true,useX11text,500,500,-1.05,1.05,-1.05,1.05);
 
   for (v=0;v<n;v++) {
     l = std::sqrt(S[v][0]*S[v][0]+S[v][1]*S[v][1]+S[v][2]*S[v][2]);
@@ -346,6 +448,7 @@ int main()
     DT2D_test();
     DT2D_test2();
     DT2D_test3();
+    CDT_test();
     DTsphere_test();
   }
 

@@ -15,8 +15,9 @@
 #include "mesh.h"
 
 #ifndef NOT_IMPLEMENTED
-#define NOT_IMPLEMENTED (std::cout << "Not implemented: "	\
+#define NOT_IMPLEMENTED (std::cout				\
 			 << __FILE__ << "(" << __LINE__ << ") "	\
+			 << "NOT IMPLEMENTED: "			\
 			 << __PRETTY_FUNCTION__ << std::endl);
 #endif
 
@@ -130,7 +131,21 @@ namespace fmesh {
   public:
     MCQsegm(MeshC* MC) : MCQ(MC,false), encroached_limit_(10*MESH_EPSILON) {};
     double calcQ(const Dart& d) const;
-    bool segm(const Dart& d) const; /*! true if d or d.orbit1() is found */
+    bool segm(const Dart& d) const; /*!< true if d or d.orbit1() is found */
+  };
+
+  class MCQswapable : public MCQ {
+  private:
+    /* No private data. */
+  public:
+    MCQswapable(MeshC* MC) : MCQ(MC,false) {};
+    bool found(const Dart& d) const;
+    bool foundQ(const Dart& d) const;
+    const double quality(const Dart& d) const;
+    void insert(const Dart& d); /*!< Insert dart if not existing. */
+    void erase(const Dart& d); /*!< Remove dart if existing. */
+    double calcQ(const Dart& d) const;
+    bool swapable(const Dart& d) const; /*!< true if d or d.orbit1() is found */
   };
 
 
@@ -138,6 +153,7 @@ namespace fmesh {
     \brief Class for constructing Delaunay triangulations
   */
   class MeshC {
+    friend class MCQswapable;
   public:
     enum State {State_noT=0, /*!< No triangulation present */
 		State_CHT, /*!< Convex hull triangulation */
@@ -173,7 +189,7 @@ namespace fmesh {
     bool insertNode(int v, const Dart& ed);
 
     bool isSegment(const Dart& d) const;
-    bool buildRCDTlookahead(MCQsegm* segm, const double* c);
+    bool buildRCDTlookahead(MCQsegm* segm, const Point& c);
 
     /*!
       \brief Make a DT from a CHT, calling LOP.
@@ -184,6 +200,10 @@ namespace fmesh {
       boundaries as constraint segments.
     */
     bool prepareCDT();
+    /*!
+      \brief Insert a constraint edge into a CDT.
+    */
+    Dart CDTinsert(const int v0, const int v1);
     /*!
       \brief Build a CDT from constraint edge lists. Called by prepareCDT,
       CDTBoundary and CDTInterior.
@@ -220,6 +240,8 @@ namespace fmesh {
       M_->S_append(S,nV);
       return M_->nV()-nV;
     };
+
+    Dart swapEdgeLOP(const Dart& d, MCQswapable& swapable);
     Dart swapEdge(const Dart& d);
     Dart splitEdge(const Dart& d, int v);
     Dart splitTriangle(const Dart& d, int v);
@@ -232,8 +254,20 @@ namespace fmesh {
       \brief Local Optimisation Procedure (LOP)
 
       Perform LOP to make the input triangulation Delaunay.
+      
+      \param swapable The triangulation part to be LOPed, as a set of
+      swappable darts.
      */
-    bool LOP(const triangleListT& t_set);
+    bool LOP(MCQswapable& swapable);
+    /*!
+      \brief Local Optimisation Procedure (LOP)
+
+      Perform LOP to make the input triangulation Delaunay.
+      
+      \param t_set The triangulation part to be LOPed, as a set
+      triangle indices.
+     */
+    bool LOP(const triangleSetT& t_set);
     /*!
       \brief Build Delaunay triangulation (DT)
 
@@ -273,6 +307,7 @@ namespace fmesh {
     bool RCDT(double skinny_limit, double big_limit);
   };
 
+  std::ostream& operator<<(std::ostream& output, const DartOrderedSet& ds);
 
 } /* namespace fmesh */
 

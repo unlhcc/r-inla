@@ -9,6 +9,7 @@
 
 #include "mesh.h"
 
+#define WHEREAMI __FILE__ << "(" << __LINE__ << ")\t"
 
 namespace fmesh {
 
@@ -17,6 +18,7 @@ namespace fmesh {
 
   class Xtmpl {
   private:
+    static int window_next_;
     int window_;
     char* name_char_;
     int sx_, sy_;
@@ -47,7 +49,8 @@ namespace fmesh {
     void reopen(int sx, int sy) {
       if (!(window_<0))
 	close();
-      window_ = 0;
+      else
+	window_ = window_next_++;
       sx_ = sx;
       sy_ = sy;
       xtmpl_window = window_;
@@ -61,7 +64,8 @@ namespace fmesh {
 	      int sx, int sy) {
       if (!(window_<0))
 	close();
-      window_ = 0;
+      else
+	window_ = window_next_++;
       sx_ = sx;
       sy_ = sy;
       if (name_char_) delete[] name_char_;
@@ -100,16 +104,37 @@ namespace fmesh {
       miny_ = miny;
       maxy_ = maxy;
     };
+    double width() const { return (maxx_-minx_); };
 
-    void arc(bool fg, const Point& s0, const Point& s1);
+    void dot(bool fg, const Point& s0, int sz);
+    void dot_on_sphere(bool fg, const Point& s0, int sz, double xoffset);
+    void arc(bool fg, const Point& s0, const Point& s1, double xoffset);
     void line(bool fg, const Point& s0, const Point& s1);
     void text(bool fg, const Point& s0, std::string str);
+  };
+  int Xtmpl::window_next_ = 0;
 
+  void Xtmpl::dot(bool fg, const Point& s0, int sz)
+  {
+    xtmpl_window = window_;
+    xtmpl_dot((int)(sx_*(s0[0]-minx_)/(maxx_-minx_)),
+	      (int)(sy_*(s0[1]-miny_)/(maxy_-miny_)),
+	      sz,
+	      (int)fg);
   };
 
-  void Xtmpl::arc(bool fg, const Point& s0, const Point& s1)
+  void Xtmpl::dot_on_sphere(bool fg, const Point& s0, int sz, double xoffset)
   {
-    int n = 10;
+    xtmpl_window = window_;
+    xtmpl_dot((int)(sx_*(s0[0]+xoffset-minx_)/(maxx_-minx_)),
+	      (int)(sy_*(s0[1]-miny_)/(maxy_-miny_)),
+	      sz,
+	      (int)fg);
+  };
+
+  void Xtmpl::arc(bool fg, const Point& s0, const Point& s1, double xoffset)
+  {
+    int n = 8;
     xtmpl_window = window_;
     double p0[2];
     double p1[2];
@@ -130,17 +155,18 @@ namespace fmesh {
 	p1[dim] = s[dim]/l;
       
       if (fg)
-	xtmpl_draw_line((int)(sx_*(p0[0]-minx_)/(maxx_-minx_)),
+	xtmpl_draw_line((int)(sx_*(p0[0]+xoffset-minx_)/(maxx_-minx_)),
 			(int)(sy_*(p0[1]-miny_)/(maxy_-miny_)),
-			(int)(sx_*(p1[0]-minx_)/(maxx_-minx_)),
+			(int)(sx_*(p1[0]+xoffset-minx_)/(maxx_-minx_)),
 			(int)(sy_*(p1[1]-miny_)/(maxy_-miny_)));
       else
-	xtmpl_erase_line((int)(sx_*(p0[0]-minx_)/(maxx_-minx_)),
+	xtmpl_erase_line((int)(sx_*(p0[0]+xoffset-minx_)/(maxx_-minx_)),
 			 (int)(sy_*(p0[1]-miny_)/(maxy_-miny_)),
-			 (int)(sx_*(p1[0]-minx_)/(maxx_-minx_)),
+			 (int)(sx_*(p1[0]+xoffset-minx_)/(maxx_-minx_)),
 			 (int)(sy_*(p1[1]-miny_)/(maxy_-miny_)));
     }
   };
+
   void Xtmpl::line(bool fg, const Point& s0, const Point& s1)
   {
     xtmpl_window = window_;
@@ -155,6 +181,7 @@ namespace fmesh {
 		       (int)(sx_*(s1[0]-minx_)/(maxx_-minx_)),
 		       (int)(sy_*(s1[1]-miny_)/(maxy_-miny_)));
   };
+
   void Xtmpl::text(bool fg, const Point& s0, std::string str)
   {
     if (!draw_text_) return;
@@ -255,6 +282,7 @@ namespace fmesh {
     } else {
       X11_ = NULL;
     }
+    X11_v_big_limit_ = M.X11_v_big_limit_;
     S_set(M.S_,M.nV_);
     TV_set(M.TV_,M.nT_);
     return *this;
@@ -264,7 +292,7 @@ namespace fmesh {
   {
     if ((nVc <= Vcap_) && (nTc <= Tcap_))
       return *this;
-    std::cout << "Increasing V-capacity from " << Vcap_;
+    std::cout << WHEREAMI << "Increasing V-capacity from " << Vcap_;
     while ((nVc > Vcap_) || (nTc > Tcap_)) {
       if (Vcap_==0)
 	Vcap_ = Mesh_V_capacity_step_size;
@@ -333,9 +361,9 @@ namespace fmesh {
       }
     }
     /*
-    std::cout << TTO() << std::endl;
+    std::cout << WHEREAMI << TTO() << std::endl;
     for (Ei=ET.begin();Ei!=ET.end();Ei++) {
-      std::cout << Ei->first.first << ' '
+      std::cout << WHEREAMI << Ei->first.first << ' '
 		<< Ei->first.second << ' '
 		<< Ei->second << std::endl;
     }
@@ -456,7 +484,7 @@ namespace fmesh {
 	    TTi_[t][(vi+2)%3] = (vi2+1)%3;
 	  } else {
 	    /* Error! This should never happen! */
-	    std::cout << "ERROR\n";
+	    std::cout << WHEREAMI << "ERROR\n";
 	  }
 	} else {
 	  TTi_[t][(vi+2)%3] = -1;
@@ -506,11 +534,19 @@ namespace fmesh {
   {
     if (use_X11) {
       if (!X11_) { /* Init. */
-	X11_ = new Xtmpl(draw_text,sx,sy,minx,maxx,miny,maxy,name);
+	if (type_ == Mtype_sphere)
+	  X11_ = new Xtmpl(draw_text,sx*2,sy,minx,2*maxx-minx,miny,maxy,name);
+	else
+	  X11_ = new Xtmpl(draw_text,sx,sy,minx,maxx,miny,maxy,name);
 	redrawX11("");
       } else {
-	X11_->reopen(sx,sy,draw_text);
-	X11_->setAxis(minx,maxx,miny,maxy);
+	if (type_ == Mtype_sphere) {
+	  X11_->reopen(sx*2,sy,draw_text);
+	  X11_->setAxis(minx,2*maxx-minx,miny,maxy);
+	} else {
+	  X11_->reopen(sx,sy,draw_text);
+	  X11_->setAxis(minx,maxx,miny,maxy);
+	}
 	redrawX11("");
       }
     } else { /* Destroy. */
@@ -552,16 +588,20 @@ namespace fmesh {
   {
     if (!X11_) return;
 
-    int v;
+    int szbig = 5;
+    int szsmall = 1;
+
+    int* v;
     Point s[3];
     Point s0;
+    bool otherside = false;
 
     s0[0] = 0.0;
     s0[1] = 0.0;
     s0[2] = 0.0;
+    v = TV_[t];
     for (int vi=0;vi<3;vi++) {
-      v = TV_[t][vi];
-      Vec::copy(s[vi],S_[v]);
+      Vec::copy(s[vi],S_[v[vi]]);
       Vec::accum(s0,s[vi],1.0/3.0);
     }
     if (type_==Mtype_sphere) {
@@ -573,25 +613,38 @@ namespace fmesh {
       Vec::diff(r0,s[1],s[0]);
       Vec::diff(r1,s[2],s[0]);
       Vec::cross(n,r0,r1);
-      if (n[2]<0) return;
+      otherside = (n[2]<0);
     }
     /* Draw triangle slightly closer to center. */
     if (type_==Mtype_sphere) {
-      for (int vi=0;vi<3;vi++) {
-	Vec::diff(s[vi],s[vi],s0);
-	Vec::rescale(s[vi],0.975);
-	Vec::accum(s[vi],s0);
-	Vec::rescale(s[vi],1./Vec::length(s[vi]));
-      }
-      X11_->arc(fg,s[0],s[1]);
-      X11_->arc(fg,s[1],s[2]);
-      X11_->arc(fg,s[2],s[0]);
+      // for (int vi=0;vi<3;vi++) {
+      // 	Vec::diff(s[vi],s[vi],s0);
+      // 	Vec::rescale(s[vi],0.975);
+      // 	Vec::accum(s[vi],s0);
+      // 	Vec::rescale(s[vi],1./Vec::length(s[vi]));
+      // }
+      double offset(otherside ? X11_->width()/2.0 : 0.0);
+      int sz = ((v[0]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot_on_sphere(fg,s[0],sz,offset);
+      sz = ((v[1]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot_on_sphere(fg,s[1],sz,offset);
+      sz = ((v[2]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot_on_sphere(fg,s[2],sz,offset);
+      X11_->arc(fg,s[0],s[1],offset);
+      X11_->arc(fg,s[1],s[2],offset);
+      X11_->arc(fg,s[2],s[0],offset);
     } else {
-      for (int vi=0;vi<3;vi++) {
-	Vec::diff(s[vi],s[vi],s0);
-	Vec::rescale(s[vi],0.975);
-	Vec::accum(s[vi],s0);
-      }
+      // for (int vi=0;vi<3;vi++) {
+      // 	Vec::diff(s[vi],s[vi],s0);
+      // 	Vec::rescale(s[vi],0.975);
+      // 	Vec::accum(s[vi],s0);
+      // }
+      int sz = ((v[0]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot(fg,s[0],sz);
+      sz = ((v[1]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot(fg,s[1],sz);
+      sz = ((v[2]<X11_v_big_limit_) ? szbig : szsmall);
+      X11_->dot(fg,s[2],sz);
       X11_->line(fg,s[0],s[1]);
       X11_->line(fg,s[1],s[2]);
       X11_->line(fg,s[2],s[0]);
@@ -599,12 +652,13 @@ namespace fmesh {
     /* Draw vertex indices even closer to center. */
     for (int vi=0;vi<3;vi++) {
       Vec::diff(s[vi],s[vi],s0);
-      Vec::rescale(s[vi],0.8);
+      Vec::rescale(s[vi],0.9);
       Vec::accum(s[vi],s0);
     }
     for (int vi=0;vi<3;vi++) {
       std::ostringstream ss;
-      ss << "(" << TV_[t][vi] << "," << TT_[t][vi] << ")";
+      //      ss << "(" << TV_[t][vi] << "," << TT_[t][vi] << ")";
+      ss << "" << TV_[t][vi] << "";
       X11_->text(fg,s[vi],ss.str());
     }
     /* Draw triangle indices at center. */
@@ -672,10 +726,10 @@ namespace fmesh {
     int t(d.t());
     if ((t<0) || (t>=(int)nT_)) return 0.0;
 
-    int v0 = TV_[d.t()][d.vi()];
+    int v0 = d.v();
     Dart dh(d);
     dh.alpha0();
-    int v1 = TV_[dh.t()][dh.vi()];
+    int v1 = dh.v();
     const Point& s0 = S_[v0];
     const Point& s1 = S_[v1];
     Point e;
@@ -778,19 +832,8 @@ namespace fmesh {
 		      tan((s - c) / 2))
     Area = E  (E = spherical excess)
   */
-  double Mesh::triangleArea(int t) const
+  double Mesh::triangleArea(const Point& s0, const Point& s1, const Point& s2) const
   {
-    if ((t<0) || (t>=(int)nT_)) return 0.0;
-
-    Dart dh(Dart(*this,t));
-    int v0 = TV_[dh.t()][dh.vi()];
-    dh.orbit2();
-    int v1 = TV_[dh.t()][dh.vi()];
-    dh.orbit2();
-    int v2 = TV_[dh.t()][dh.vi()];
-    const Point& s0 = S_[v0];
-    const Point& s1 = S_[v1];
-    const Point& s2 = S_[v2];
     Point e0, e1, e2;
     Vec::diff(e0,s2,s1);
     Vec::diff(e1,s0,s2);
@@ -868,6 +911,19 @@ namespace fmesh {
     }
 
     return area;
+  }
+
+  double Mesh::triangleArea(int t) const
+  {
+    if ((t<0) || (t>=(int)nT_)) return 0.0;
+
+    Dart dh(Dart(*this,t));
+    int v0 = dh.v();
+    dh.orbit2();
+    int v1 = dh.v();
+    dh.orbit2();
+    int v2 = dh.v();
+    return Mesh::triangleArea(S_[v0],S_[v1],S_[v2]);
   }
 
   /*!
@@ -1034,16 +1090,16 @@ namespace fmesh {
   }
 
 
-  double Mesh::edgeEncroached(const Dart& d, const double s[3]) const
+  double Mesh::edgeEncroached(const Dart& d, const Point& s) const
   /* > --> encroached */
   {
     int t(d.t());
     if ((t<0) || (t>=(int)nT_)) return -1.0;
 
     Dart dh(d);
-    const Point& s0 = S_[TV_[t][dh.vi()]];
+    const Point& s0 = S_[dh.v()];
     dh.orbit2();
-    const Point& s1 = S_[TV_[t][dh.vi()]];
+    const Point& s1 = S_[dh.v()];
 
     /* Edge is encorached if the distance to the midpoint is smaller
        than half the straight edge length. */
@@ -1131,43 +1187,48 @@ namespace fmesh {
 
 
 
-  double Mesh::inLeftHalfspace(const Dart& d, const double s[3]) const
+  double Mesh::inLeftHalfspace(const Point& s0,
+			       const Point& s1,
+			       const Point& s) const
   {
-    Dart dh(d);
-    int v0, v1;
-    if (d.isnull()) return 0.0; /* TODO: should show a warning somewhere... */
-    const int* tp = TV_[dh.t()];
-    v0 = tp[dh.vi()];
-    dh.orbit2();
-    v1 = tp[dh.vi()];
     switch (type_) {
     case Mesh::Mtype_manifold:
       //	return predicates::orient3d(M_->S[]);
       NOT_IMPLEMENTED;
       break;
     case Mesh::Mtype_plane:
-      return predicates::orient2d(S_[v0],S_[v1],s);
+      return predicates::orient2d(s0,s1,s);
       break;
     case Mesh::Mtype_sphere:
       Point zero = {0.,0.,0.};
-      return -predicates::orient3d(S_[v0],S_[v1],zero,s);
+      return -predicates::orient3d(s0,s1,zero,s);
       break;
     }
     /* This should never be reached. */
     return 0.0;
   }
 
-  double Mesh::inCircumcircle(const Dart& d, const double s[3]) const
+  double Mesh::inLeftHalfspace(const Dart& d, const Point& s) const
+  {
+    Dart dh(d);
+    int v0, v1;
+    if (d.isnull()) return 0.0; /* TODO: should show a warning somewhere... */
+    v0 = dh.v();
+    dh.orbit2();
+    v1 = dh.v();
+    return inLeftHalfspace(S_[v0],S_[v1],s);
+  }
+
+  double Mesh::inCircumcircle(const Dart& d, const Point& s) const
   {
     Dart dh(d);
     int v0, v1, v2;
     if (d.isnull()) return 0.0; /* TODO: should show a warning somewhere... */
-    const int* tp = TV_[dh.t()];
-    v0 = tp[dh.vi()];
+    v0 = dh.v();
     dh.orbit2();
-    v1 = tp[dh.vi()];
+    v1 = dh.v();
     dh.orbit2();
-    v2 = tp[dh.vi()];
+    v2 = dh.v();
     switch (type_) {
     case Mesh::Mtype_manifold:
       //	return predicates::orient3d(M_->S[]);
@@ -1191,25 +1252,31 @@ namespace fmesh {
     if (d.isnull()) return true; /* TODO: should show a warning somewhere... */
     if (d.onBoundary()) return true; /* Locally optimal, OK. */
     dh.orbit0rev().orbit2();
-    v = TV_[dh.t()][dh.vi()];
+    v = dh.v();
     result = inCircumcircle(d,S_[v]);
-    std::cout << "Dart=" << d
-	      << " Node=" << v
-	      << std::scientific << " result=" << result
-	      << std::endl;
+    // std::cout << WHEREAMI << "Dart=" << d
+    // 	      << " Node=" << v
+    // 	      << std::scientific << " result=" << result
+    // 	      << " (" << S_[v][0]
+    // 	      << "," << S_[v][1]
+    // 	      << "," << S_[v][2] << ")"
+    // 	      << std::endl;
     if  (result > MESH_EPSILON)
       return false;
     /* For robusness, check with the reverse dart as well: */
     dh = d;
     dh.orbit2rev();
-    v = TV_[dh.t()][dh.vi()];
+    v = dh.v();
     dh.orbit2();
     dh.orbit1();
     result = inCircumcircle(dh,S_[v]);
-    std::cout << "Dart=" << dh
-	      << " Node=" << v
-	      << std::scientific << " result=" << result
-	      << std::endl;
+    // std::cout << WHEREAMI << "Dart=" << dh
+    // 	      << " Node=" << v
+    // 	      << std::scientific << " result=" << result
+    // 	      << " (" << S_[v][0]
+    // 	      << "," << S_[v][1]
+    // 	      << "," << S_[v][2] << ")"
+    // 	      << std::endl;
     if  (result > MESH_EPSILON)
       return false;
     return true;
@@ -1332,19 +1399,19 @@ namespace fmesh {
 
     /* Debug code: */
     /* 
-    std::cout << "TT is \n" << TTO();
+    std::cout << WHEREAMI << "TT is \n" << TTO();
     rebuildTT();
-    std::cout << "TT should be \n" << TTO();
+    std::cout << WHEREAMI << "TT should be \n" << TTO();
     if (use_TTi_) {
-      std::cout << "TTi is \n" << TTiO();
+      std::cout << WHEREAMI << "TTi is \n" << TTiO();
       rebuildTTi();
-      std::cout << "TTi should be \n" << TTiO();
+      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
     }
     */
 
     drawX11triangle(t0,true);
     drawX11triangle(t1,true);
-    std::cout << "Edge swapped" << std::endl;
+    std::cout << WHEREAMI << "Edge swapped" << std::endl;
     
     return Dart(*this,t0,1,1);
   }
@@ -1541,13 +1608,13 @@ namespace fmesh {
 
     /* Debug code: */
     /*
-    std::cout << "TT is \n" << TTO();
+    std::cout << WHEREAMI << "TT is \n" << TTO();
     rebuildTT();
-    std::cout << "TT should be \n" << TTO();
+    std::cout << WHEREAMI << "TT should be \n" << TTO();
     if (use_TTi_) {
-      std::cout << "TTi is \n" << TTiO();
+      std::cout << WHEREAMI << "TTi is \n" << TTiO();
       rebuildTTi();
-      std::cout << "TTi should be \n" << TTiO();
+      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
     }
     */
 
@@ -1557,7 +1624,7 @@ namespace fmesh {
     }
     drawX11triangle(t1,true);
     drawX11triangle(t0,true);
-    std::cout << "Edge swapped" << std::endl;
+    std::cout << WHEREAMI << "Edge split" << std::endl;
     
     return Dart(*this,t1,1,0);
   }
@@ -1613,7 +1680,7 @@ namespace fmesh {
     t2 = nT_+1;
     check_capacity(0,nT_+2);
     
-    std::cout << "Capacity (V,T) = ("
+    std::cout << WHEREAMI << "Capacity (V,T) = ("
 	      << Vcap_ << "," << Tcap_ << "), T-indices = ("
 	      << t0 << "," << t1 << "," << t2 << ")" << std::endl;
 
@@ -1689,20 +1756,20 @@ namespace fmesh {
 
     /* Debug code: */
     /*
-    std::cout << "TT is \n" << TTO();
+    std::cout << WHEREAMI << "TT is \n" << TTO();
     rebuildTT();
-    std::cout << "TT should be \n" << TTO();
+    std::cout << WHEREAMI << "TT should be \n" << TTO();
     if (use_TTi_) {
-      std::cout << "TTi is \n" << TTiO();
+      std::cout << WHEREAMI << "TTi is \n" << TTiO();
       rebuildTTi();
-      std::cout << "TTi should be \n" << TTiO();
+      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
     }
     */
     
     drawX11triangle(t0,true);
     drawX11triangle(t1,true);
     drawX11triangle(t2,true);
-    std::cout << "Triangle split" << std::endl;
+    std::cout << WHEREAMI << "Triangle split" << std::endl;
 
     return Dart(*this,t0,1,0);
   }
@@ -1710,57 +1777,222 @@ namespace fmesh {
 
 
   /*!
-    Alg 9.1
+    Calculate barycentric coordinates.
 
-    If the point is located within the triangulation domain,
-    delta_min and the returned Dart correspond to the triangle edge
-    with smallest distance, as measured by inLeftHalfspace.
-
-    If the point is not found, a null Dart is returned.
-   */
-  Dart Mesh::locatePoint(const Dart& d0,
-			 const Point s,
-			 double* delta_min) const
+  */
+  void Mesh::barycentric(const Dart& d, const Point& s, Point& bary) const
   {
-    Dart dart;
-    if (d0.isnull())
-      dart = Dart(*this,0);
-    else
-      dart = Dart(*this,d0.t(),1,d0.vi());
-    Dart dart_start(dart);
-    double delta;
-    Dart dart_min = Dart();
-    while (1) {
-      std::cout << dart_start << ' '
-		<< dart << ' '
-		<< inLeftHalfspace(dart,s)
-		<< std::endl;
-      delta = inLeftHalfspace(dart,s);
-      if (dart_min.isnull() || (delta<*delta_min)) {
-	dart_min = dart;
-	*delta_min = delta;
+    Dart dh(d);
+    int v0(dh.v());
+    dh.orbit2();
+    int v1(dh.v());
+    dh.orbit2();
+    int v2(dh.v());
+    bary[0] = triangleArea(S_[v1],S_[v2],s);
+    bary[1] = triangleArea(S_[v2],S_[v0],s);
+    bary[2] = triangleArea(S_[v0],S_[v1],s);
+
+    switch (type_) {
+    case Mesh::Mtype_manifold:
+      break;
+    case Mesh::Mtype_plane:
+      break;
+    case Mesh::Mtype_sphere:
+      {
+	double a(triangleArea(d.t()));
+	if (a <= 2.0*M_PI) { // Regular triangle
+	  if (bary[0] > 2.0*M_PI) bary[0] = bary[0]-4.0*M_PI;
+	  if (bary[1] > 2.0*M_PI) bary[1] = bary[1]-4.0*M_PI;
+	  if (bary[2] > 2.0*M_PI) bary[2] = bary[2]-4.0*M_PI;
+	} else { // Inverted/big triangle
+	  if (bary[0] > a) bary[0] = bary[0]-4.0*M_PI;
+	  if (bary[1] > a) bary[1] = bary[1]-4.0*M_PI;
+	  if (bary[2] > a) bary[2] = bary[2]-4.0*M_PI;
+	}
       }
-      if (delta >= -MESH_EPSILON) {
-	dart.orbit2();
-	if (dart==dart_start)
-	  return dart_min;
-      } else {
-	if (dart.onBoundary())
-	  return Dart();
-	dart.alpha2();
-	dart_start = dart;
-	dart_start.alpha0();
-	dart.alpha1();
-	dart_min = dart_start;
-	*delta_min = -delta;
-      }
+      break;
     }
 
+    Vec::rescale(bary,1.0/(bary[0]+bary[1]+bary[2]));
+  }
+
+
+  /*!
+    Find the edge opposite a vertex that a straight path will pass through.
+
+    If the point is not found, a null Dart is returned.
+
+    \verbatim
+    findPathDirection(d0,s)
+     1. d0 determines the starting vertex, v0 = d0.v
+     2. d = d0
+     4. d.orbit0rev
+     5. while (d != d0) // Stop at edge or after one full orbit.
+     6.   d.orbit0rev
+     7. d.orbit2
+     8. onleft0 = inLeftHalfSpace(S(v0),s,S(d.v))
+     9. d.orbit2
+    10. onleft1 = inLeftHalfSpace(S(v0),s,S(d.v))
+    11. while !(!onleft0 & onleft1) & !d.onBoundary
+    12.   d.orbit0rev
+    13.   if d == d0 // We've gone a full orbit without success
+    14.     return null
+    15.   onleft0 = onleft1
+    16.   d.orbit2
+    17.   onleft1 = inLeftHalfSpace(S(v0),s,S(d.v))
+    18. if (!onleft0 & onleft1)
+    19.   return d
+    20. return null // Not found (hit boundary).
+    \endverbatim
+   */
+  Dart Mesh::findPathDirection(const Dart& d0,
+			       const Point& s,
+			       const int v) const
+  {
+    Dart d(d0);
+    if (d.isnull())
+      return Dart();
+    int v0(d.v());
+    if (d.v() == v) // Have we found a preexisting vertex?
+      return d;
+    d.orbit0rev();
+    while ((d != d0) && (!d.onBoundary()))
+      d.orbit0rev();
+    d.orbit2();
+    if (d.v() == v) // Have we found a preexisting vertex?
+      return d;
+    bool onleft0(inLeftHalfspace(S_[v0],s,S_[d.v()]) >= 0.0);
+    d.orbit2();
+    if (d.v() == v) // Have we found a preexisting vertex?
+      return d;
+    bool onleft1(inLeftHalfspace(S_[v0],s,S_[d.v()]) >= 0.0);
+    std::cout << WHEREAMI << "Locating direction "
+	      << onleft0 << onleft1 << std::endl;
+    while (!(!onleft0 && onleft1) && (!d.onBoundary())) {
+      d.orbit0rev();
+      if (d==d0)
+	return Dart();
+      onleft0 = onleft1;
+      d.orbit2();
+      onleft1 = (inLeftHalfspace(S_[v0],s,S_[d.v()]) >= 0.0);
+      if (d.v() == v) // Have we found a preexisting vertex?
+	return d;
+      std::cout << WHEREAMI << "Locating direction "
+		<< onleft0 << onleft1 << std::endl;
+    }
+    if (!onleft0 && onleft1) {
+      d.orbit2rev();
+      return d;
+    }
     return Dart();
   }
 
+
+
   /*!
-    Alg 9.1 modified to locate a pre-existing vertex.
+    Trace the geodesic path from a vertex to a point ar another vertex.
+
+    Return a dart identifying the point containing triangle, or a dart
+    originating at the vertex.  If the point/vertex is not found, a
+    null Dart is returned.  Priority is given to finding the vertex;
+    if found, the point is disregarded.  The trace only includes darts
+    strictly intersected, i.e. not the initial and final darts.
+
+    Alg 9.1 is non-robust, and does not take the shortest route.  This
+    algorithm finds and follows the straight-line intersected edges
+    instead, making it suitable for use in CDT segment insertion
+    algorithms.
+
+    \verbatim
+    tracePath:
+     1. d0 determines the starting vertex, v0 = d0.v
+     2. d = findPathDirection(d0,s) // d is now opposite v0
+     3. if inLeftHalfspace(d,s) return d
+     4. while !d.onBoundary
+     5.   store d in path-trace
+     6.   d1 = d.orbit1.orbit2rev
+     7.   found1 = inLeftHalfspace(d1,s)
+     8.   leavethrough2 = inLeftHalfspace(S(v0),s,S(d.v))
+     9.   d2 = d1.orbit2rev
+    10.   found2 = inLeftHalfspace(d2,s)
+    11.   if found1 & found2 return d2
+    12.   if leavethrough2, d=d2, else d=d1
+    13. return null
+    \endverbatim
+   */
+  Dart Mesh::tracePath(const Dart& d0,
+		       const Point& s1,
+		       const int v1,
+		       DartOrderedSet* trace) const
+  {
+    Dart dh;
+    bool found, other;
+    int trace_index = 0;
+    if (d0.isnull())
+      dh = Dart(*this,0);
+    else
+      dh = Dart(*this,d0.t(),1,d0.vi());
+    int v0(dh.v());
+    std::cout << WHEREAMI << "Locating point " << s1
+	      << " v0=" << v0
+	      << " v1=" << v1
+	      << std::endl;
+    Dart d(findPathDirection(dh,s1,v1));
+    std::cout << WHEREAMI << "Path-direction " << d << std::endl;
+    if (d.isnull()) {
+      std::cout << WHEREAMI << "Not found" << std::endl;
+      return Dart();
+    }
+    if ((d.v() == v1) || (inLeftHalfspace(d,s1) >= -MESH_EPSILON)) {
+      std::cout << WHEREAMI << "Found " << d << std::endl;
+      return d;
+    }
+    while (!d.onBoundary()) {
+      if (trace)
+	trace->insert(DartOrderedSet::value_type(trace_index++,d));
+      d.orbit1().orbit2rev();
+      std::cout << WHEREAMI << "In triangle " << d << std::endl;
+      if (d.v() == v1) {
+	std::cout << WHEREAMI << "Found vertex at " << d << std::endl;
+	return d;
+      }
+      found = (inLeftHalfspace(d,s1) >= -MESH_EPSILON);
+      other = (inLeftHalfspace(S_[v0],s1,S_[d.v()]) > 0.0);
+      d.orbit2rev();
+      if (found && (inLeftHalfspace(d,s1) >= -MESH_EPSILON))
+	return d;
+      else
+	found = false;
+      if (!other)
+	d.orbit2();
+      std::cout << WHEREAMI << "Go to next triangle, from " << d << std::endl;
+    }
+    return Dart();
+  }
+
+
+  /*!
+    Locate a point in the graph.
+
+    Return a dart identifying the containing triangle.
+
+    If the point is not found, a null Dart is returned.
+   */
+  Dart Mesh::locatePoint(const Dart& d0, const Point& s) const
+  {
+    Dart dh;
+    if (d0.isnull())
+      dh = Dart(*this,0);
+    else
+      dh = Dart(*this,d0.t(),1,d0.vi());
+    return tracePath(dh,s);
+  }
+
+
+  /*!
+    Locate an existing vertex in the graph.
+
+    Return a dart originating at the vertex.
 
     If the vertex is not found, a null Dart is returned.
    */
@@ -1778,60 +2010,19 @@ namespace fmesh {
 	return Dart(*this,t,1,1);
       if (TV_[t][2] == v)
 	return Dart(*this,t,1,2);
-      std::cout << "ERROR: Inconsistent data structures!" << std::endl;
+      std::cout << WHEREAMI << "ERROR: Inconsistent data structures!" << std::endl;
       return Dart(); /* ERROR: Inconsistent data structures! */
     }
 
-    int i;
-    Dart dart;
+    Dart dh;
     if (d0.isnull())
-      dart = Dart(*this,0);
+      dh = Dart(*this,0);
     else
-      dart = Dart(*this,d0.t(),1,d0.vi());
-    Dart dart_start(dart);
-    double delta;
-    Dart dart_min = Dart();
-    const Point& s = S_[v];
-    double delta_min = 0.0;
-    while (1) {
-      std::cout << dart_start << ' '
-		<< dart << ' '
-		<< inLeftHalfspace(dart,s)
-		<< std::endl;
-      for (i=0;i<3;i++) {
-	if (TV_[dart.t()][dart.vi()] == v)
-	  return dart;
-	dart.orbit2();
-      }
-
-      delta = inLeftHalfspace(dart,s);
-      if (dart_min.isnull() || (delta<delta_min)) {
-	dart_min = dart;
-	delta_min = delta;
-      }
-      if (delta >= -MESH_EPSILON) {
-	dart.orbit2();
-	if (dart==dart_start) {
-	  for (i=0;i<3;i++) {
-	    if (TV_[dart.t()][dart.vi()] == v)
-	      return dart;
-	    dart.orbit2();
-	  }
-	  return Dart(); /* ERROR: Point located, but not the vertex itself. */
-	}
-      } else {
-	if (dart.onBoundary())
-	  return Dart();
-	dart.alpha2();
-	dart_start = dart;
-	dart_start.alpha0();
-	dart.alpha1();
-	dart_min = dart_start;
-	delta_min = -delta;
-      }
-    }
-
-    return Dart();
+      dh = Dart(*this,d0.t(),1,d0.vi());
+    dh = tracePath(dh,S_[v],v);
+    if (dh.v() != v) /* Point may be found, but not the actual vertex. */
+      return Dart();
+    return dh;
   }
 
 
@@ -1950,7 +2141,7 @@ namespace fmesh {
       output << ' ' << std::right << std::setw(4)
 	     << MO.M_[i];
     }
-    std::cout << std::endl;
+    output << std::endl;
     return output;
   }
 
@@ -1962,7 +2153,7 @@ namespace fmesh {
 	output << ' ' << std::right << std::setw(4)
 	       << MO.M_[i][j];
       }
-      std::cout << std::endl;
+      output << std::endl;
     }
     return output;
   }
@@ -1974,8 +2165,20 @@ namespace fmesh {
       for (int j = 0; j<3; j++)
 	output << ' ' << std::right << std::setw(10) << std::scientific
 	       << MO.M_[i][j];
-      std::cout << std::endl;
+      output << std::endl;
     }
+    return output;
+  }
+
+  std::ostream& operator<<(std::ostream& output, const Point& MO)
+  {
+    output << '(';
+    for (int j = 0; j<3; j++) {
+      output << std::right << std::setw(10) << std::scientific << MO[j];
+      if (j<2)
+	output << ',';
+    }
+    output << ')';
     return output;
   }
 
