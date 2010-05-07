@@ -11,6 +11,13 @@
 
 #define WHEREAMI __FILE__ << "(" << __LINE__ << ")\t"
 
+#ifdef DEBUG
+#define MESH_LOG(msg) std::cout << WHEREAMI << msg;
+#else
+#define MESH_LOG(msg)
+#endif
+
+
 namespace fmesh {
 
 
@@ -239,7 +246,7 @@ namespace fmesh {
 	TTi_ = new int[Tcap_][3];
       else
 	TTi_ = NULL;
-      S_ = new double[Vcap_][3];
+      S_ = new Point[Vcap_];
     } else {
       TV_ = NULL;
       TT_ = NULL;
@@ -293,7 +300,7 @@ namespace fmesh {
   {
     if ((nVc <= Vcap_) && (nTc <= Tcap_))
       return *this;
-    std::cout << WHEREAMI << "Increasing V-capacity from " << Vcap_;
+    MESH_LOG("Increasing V-capacity from " << Vcap_ << std::endl)
     while ((nVc > Vcap_) || (nTc > Tcap_)) {
       if (Vcap_==0)
 	Vcap_ = Mesh_V_capacity_step_size;
@@ -303,22 +310,22 @@ namespace fmesh {
 	Vcap_ += Mesh_V_capacity_step_size;
       Tcap_ = 2*Vcap_;
     }
-    std::cout << " to " << Vcap_ << std::endl;
+    MESH_LOG("V-capacity set to " << Vcap_ << std::endl)
 
-    int (*TV)[3] = new int[Tcap_][3];
-    int (*TT)[3] = new int[Tcap_][3];
+    int (*TV)[3] = new Int3[Tcap_];
+    int (*TT)[3] = new Int3[Tcap_];
     int (*VT) = NULL;
     if (use_VT_) VT = new int[Vcap_];
     int (*TTi)[3] = NULL;
-    if (use_TTi_) TTi = new int[Tcap_][3];
-    double (*S)[3] = new double[Vcap_][3];
+    if (use_TTi_) TTi = new Int3[Tcap_];
+    double (*S)[3] = new Point[Vcap_];
 
     if (TV_) {
-      if (TV_) memcpy(TV,TV_,sizeof(int)*nT_*3);
-      if (TT_) memcpy(TT,TT_,sizeof(int)*nT_*3);
+      if (TV_) memcpy(TV,TV_,sizeof(Int3)*nT_);
+      if (TT_) memcpy(TT,TT_,sizeof(Int3)*nT_);
       if (VT_) memcpy(VT,VT_,sizeof(int)*nV_);
-      if (TTi_) memcpy(TTi,TTi_,sizeof(int)*nT_*3);
-      if (S_) memcpy(S,S_,sizeof(double)*nV_*3);
+      if (TTi_) memcpy(TTi,TTi_,sizeof(Int3)*nT_);
+      if (S_) memcpy(S,S_,sizeof(Point)*nV_);
       if (TV_) delete[] TV_;
       if (TT_) delete[] TT_;
       if (VT_) delete[] VT_;
@@ -339,7 +346,7 @@ namespace fmesh {
 
   Mesh& Mesh::rebuildTT()
   {
-    typedef std::pair<int,int> E_Type;
+    typedef IntPair E_Type;
     typedef std::map<E_Type,int> ET_Type;
     int t, vi;
     int* TVt;
@@ -350,8 +357,8 @@ namespace fmesh {
     for (t=0; t<(int)nT_; t++) {
       TVt = TV_[t];
       for (vi=0; vi<3; vi++) {
-	E0 = std::pair<int,int>(TVt[(vi+1)%3],TVt[(vi+2)%3]);
-	E1 = std::pair<int,int>(TVt[(vi+2)%3],TVt[(vi+1)%3]);
+	E0 = IntPair(TVt[(vi+1)%3],TVt[(vi+2)%3]);
+	E1 = IntPair(TVt[(vi+2)%3],TVt[(vi+1)%3]);
 	Ei = ET.find(E1);
 	if (Ei != ET.end()) { /* Found neighbour */
 	  TT_[t][vi] = Ei->second;
@@ -361,21 +368,13 @@ namespace fmesh {
 	ET.insert(ET_Type::value_type(E0,t));
       }
     }
-    /*
-    std::cout << WHEREAMI << TTO() << std::endl;
-    for (Ei=ET.begin();Ei!=ET.end();Ei++) {
-      std::cout << WHEREAMI << Ei->first.first << ' '
-		<< Ei->first.second << ' '
-		<< Ei->second << std::endl;
-    }
-    */
 
     /* Pass 2: */
     for (t=0; t<(int)nT_; t++) {
       TVt = TV_[t];
       for (vi=0; vi<3; vi++) {
 	if (TT_[t][vi]>=0) continue;
-	E1 = std::pair<int,int>(TVt[(vi+2)%3],TVt[(vi+1)%3]);
+	E1 = IntPair(TVt[(vi+2)%3],TVt[(vi+1)%3]);
 	Ei = ET.find(E1);
 	if (Ei != ET.end()) { /* Found neighbour */
 	  TT_[t][vi] = Ei->second;
@@ -474,7 +473,7 @@ namespace fmesh {
     if (!Tcap_)
       return *this;
     if (!TTi_)
-      TTi_ = new int[Tcap_][3];
+      TTi_ = new Int3[Tcap_];
     for (t=0; t<(int)nT_; t++) {
       for (vi=0; vi<3; vi++) {
 	v = TV_[t][vi];
@@ -485,7 +484,7 @@ namespace fmesh {
 	    TTi_[t][(vi+2)%3] = (vi2+1)%3;
 	  } else {
 	    /* Error! This should never happen! */
-	    std::cout << WHEREAMI << "ERROR\n";
+	    MESH_LOG("ERROR\n");
 	  }
 	} else {
 	  TTi_[t][(vi+2)%3] = -1;
@@ -931,7 +930,7 @@ namespace fmesh {
       break;
     default:
       /* ERROR: This should never be reached. */
-      std::cout << WHEREAMI << "ERROR: unhandled mesh type.";
+      MESH_LOG("ERROR: unhandled mesh type.");
       area = 0.0;
     }
 
@@ -1229,78 +1228,60 @@ namespace fmesh {
     return 0.0;
   }
 
-  double Mesh::inLeftHalfspace(const Dart& d, const Point& s) const
+  double Dart::inLeftHalfspace(const Point& s) const
   {
-    Dart dh(d);
-    int v0, v1;
-    if (d.isnull()) return 0.0; /* TODO: should show a warning somewhere... */
-    v0 = dh.v();
+    if (isnull()) return 0.0; /* TODO: should show a warning somewhere... */
+    Dart dh(*this);
+    int v0(dh.v());
     dh.orbit2();
-    v1 = dh.v();
-    return inLeftHalfspace(S_[v0],S_[v1],s);
+    int v1(dh.v());
+    return M_->inLeftHalfspace(M_->S_[v0],M_->S_[v1],s);
   }
 
-  double Mesh::inCircumcircle(const Dart& d, const Point& s) const
+  double Dart::inCircumcircle(const Point& s) const
   {
-    Dart dh(d);
-    int v0, v1, v2;
-    if (d.isnull()) return 0.0; /* TODO: should show a warning somewhere... */
-    v0 = dh.v();
+    if (isnull()) return 0.0; /* TODO: should show a warning somewhere... */
+    Dart dh(*this);
+    int v0(dh.v());
     dh.orbit2();
-    v1 = dh.v();
+    int v1(dh.v());
     dh.orbit2();
-    v2 = dh.v();
-    switch (type_) {
+    int v2(dh.v());
+    switch (M_->type_) {
     case Mesh::Mtype_manifold:
       //	return predicates::orient3d(M_->S[]);
       break;
     case Mesh::Mtype_plane:
-      return predicates::incircle(S_[v0],S_[v1],S_[v2],s);
+      return predicates::incircle(M_->S_[v0],M_->S_[v1],M_->S_[v2],s);
       break;
     case Mesh::Mtype_sphere:
-      return -predicates::orient3d(S_[v0],S_[v1],S_[v2],s);
+      return -predicates::orient3d(M_->S_[v0],M_->S_[v1],M_->S_[v2],s);
       break;
     }
     /* This should never be reached. */
     return 0.0;
   }
 
-  bool Mesh::circumcircleOK(const Dart& d) const
+  bool Dart::circumcircleOK(void) const
   {
-    Dart dh(d);
-    int v;
-    double result;
-    if (d.isnull()) return true; /* TODO: should show a warning somewhere... */
-    if (d.onBoundary()) return true; /* Locally optimal, OK. */
+    Dart dh(*this);
+    if (isnull()) return true; /* TODO: should show a warning somewhere... */
+    if (onBoundary()) return true; /* Locally optimal, OK. */
     dh.orbit0rev().orbit2();
-    v = dh.v();
-    result = inCircumcircle(d,S_[v]);
-    // std::cout << WHEREAMI << "Dart=" << d
-    // 	      << " Node=" << v
-    // 	      << std::scientific << " result=" << result
-    // 	      << " (" << S_[v][0]
-    // 	      << "," << S_[v][1]
-    // 	      << "," << S_[v][2] << ")"
-    // 	      << std::endl;
-    if  (result > 0.0)
-      return false;
-    /* For robusness, check with the reverse dart as well: */
-    dh = d;
+    int v(dh.v());
+    //    MESH_LOG("circumcircleOK? " << *this << std::endl);
+    //    MESH_LOG("  result0 = "
+    //	      << std::scientific << inCircumcircle(M_->S_[v]) << std::endl);
+    if (inCircumcircle(M_->S_[v]) <= MESH_EPSILON) return true;
+    /* For symmetric robusness, check with the reverse dart as well: */
+    dh = *this;
     dh.orbit2rev();
     v = dh.v();
     dh.orbit2();
     dh.orbit1();
-    result = inCircumcircle(dh,S_[v]);
-    // std::cout << WHEREAMI << "Dart=" << dh
-    // 	      << " Node=" << v
-    // 	      << std::scientific << " result=" << result
-    // 	      << " (" << S_[v][0]
-    // 	      << "," << S_[v][1]
-    // 	      << "," << S_[v][2] << ")"
-    // 	      << std::endl;
-    if  (result > 0.0)
-      return false;
-    return true;
+    //    MESH_LOG("  result1 = "
+    //	      << std::scientific << dh.inCircumcircle(M_->S_[v]) << std::endl);
+    return (dh.inCircumcircle(M_->S_[v]) <= MESH_EPSILON);
   }
 
 
@@ -1420,19 +1401,19 @@ namespace fmesh {
 
     /* Debug code: */
     /* 
-    std::cout << WHEREAMI << "TT is \n" << TTO();
+    MESH_LOG("TT is \n" << TTO());
     rebuildTT();
-    std::cout << WHEREAMI << "TT should be \n" << TTO();
+    MESH_LOG("TT should be \n" << TTO());
     if (use_TTi_) {
-      std::cout << WHEREAMI << "TTi is \n" << TTiO();
+      MESH_LOG("TTi is \n" << TTiO());
       rebuildTTi();
-      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
+      MESH_LOG("TTi should be \n" << TTiO());
     }
     */
 
     drawX11triangle(t0,true);
     drawX11triangle(t1,true);
-    std::cout << WHEREAMI << "Edge swapped" << std::endl;
+    MESH_LOG("Edge swapped" << std::endl);
     
     return Dart(*this,t0,1,1);
   }
@@ -1629,13 +1610,13 @@ namespace fmesh {
 
     /* Debug code: */
     /*
-    std::cout << WHEREAMI << "TT is \n" << TTO();
+    MESH_LOG("TT is \n" << TTO());
     rebuildTT();
-    std::cout << WHEREAMI << "TT should be \n" << TTO();
+    MESH_LOG("TT should be \n" << TTO())
     if (use_TTi_) {
-      std::cout << WHEREAMI << "TTi is \n" << TTiO();
+      MESH_LOG("TTi is \n" << TTiO());
       rebuildTTi();
-      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
+      MESH_LOG("TTi should be \n" << TTiO());
     }
     */
 
@@ -1645,7 +1626,7 @@ namespace fmesh {
     }
     drawX11triangle(t1,true);
     drawX11triangle(t0,true);
-    std::cout << WHEREAMI << "Edge split" << std::endl;
+    MESH_LOG("Edge split" << std::endl);
     
     return Dart(*this,t1,1,0);
   }
@@ -1701,9 +1682,9 @@ namespace fmesh {
     t2 = nT_+1;
     check_capacity(0,nT_+2);
     
-    std::cout << WHEREAMI << "Capacity (V,T) = ("
-	      << Vcap_ << "," << Tcap_ << "), T-indices = ("
-	      << t0 << "," << t1 << "," << t2 << ")" << std::endl;
+    MESH_LOG("Capacity (V,T) = ("
+	     << Vcap_ << "," << Tcap_ << "), T-indices = ("
+	     << t0 << "," << t1 << "," << t2 << ")" << std::endl);
 
     TV_[t0][0] = v;
     TV_[t0][1] = v0;
@@ -1777,23 +1758,135 @@ namespace fmesh {
 
     /* Debug code: */
     /*
-    std::cout << WHEREAMI << "TT is \n" << TTO();
+    MESH_LOG("TT is \n" << TTO());
     rebuildTT();
-    std::cout << WHEREAMI << "TT should be \n" << TTO();
+    MESH_LOG("TT should be \n" << TTO());
     if (use_TTi_) {
-      std::cout << WHEREAMI << "TTi is \n" << TTiO();
+      MESH_LOG("TTi is \n" << TTiO());
       rebuildTTi();
-      std::cout << WHEREAMI << "TTi should be \n" << TTiO();
+      MESH_LOG("TTi should be \n" << TTiO());
     }
     */
     
     drawX11triangle(t0,true);
     drawX11triangle(t1,true);
     drawX11triangle(t2,true);
-    std::cout << WHEREAMI << "Triangle split" << std::endl;
+    MESH_LOG("Triangle split" << std::endl);
 
     return Dart(*this,t0,1,0);
   }
+
+
+
+
+
+  Dart& Dart::unlinkEdge()
+  {
+    Dart dh(*this);
+    if (!onBoundary()) {
+      dh.orbit0rev().orbit2();
+      M_->TT_[dh.t()][dh.vi()] = -1;
+      if (M_->use_TTi_)
+	M_->TTi_[dh.t()][dh.vi()] = -1;
+    }
+    dh = *this;
+    dh.orbit2rev();
+    M_->TT_[dh.t()][dh.vi()] = -1;
+    if (M_->use_TTi_)
+      M_->TTi_[dh.t()][dh.vi()] = -1;
+    
+    return *this;
+  }
+  
+  /*!
+    Unlink a triangle
+   */
+  Mesh& Mesh::unlinkTriangle(const int t)
+  {
+    Dart(*this,t).unlinkEdge().orbit2().unlinkEdge().orbit2().unlinkEdge();
+    return *this;
+  }
+
+  Mesh& Mesh::relocateTriangle(const int t_source, const int t_target)
+  {
+    if (t_target == t_source)
+      return *this;
+    if (t_target>t_source)
+      check_capacity(0,t_target+1);
+    TV_[t_target][0] = TV_[t_source][0];
+    TV_[t_target][1] = TV_[t_source][1];
+    TV_[t_target][2] = TV_[t_source][2];
+    TT_[t_target][0] = TT_[t_source][0];
+    TT_[t_target][1] = TT_[t_source][1];
+    TT_[t_target][2] = TT_[t_source][2];
+    if (use_VT_) {
+      if (VT_[TV_[t_target][0]] == t_source)
+	VT_[TV_[t_target][0]] = t_target;
+      if (VT_[TV_[t_target][1]] == t_source)
+	VT_[TV_[t_target][1]] = t_target;
+      if (VT_[TV_[t_target][2]] == t_source)
+	VT_[TV_[t_target][2]] = t_target;
+    }
+    if (use_TTi_) {
+      TTi_[t_target][0] = TTi_[t_source][0];
+      TTi_[t_target][1] = TTi_[t_source][1];
+      TTi_[t_target][2] = TTi_[t_source][2];
+    }
+    /* Relink neighbouring TT:s. TTi is not affected by the relocation. */
+    Dart dh(*this,t_target,1,0);
+    if (!dh.onBoundary()) {
+      dh.orbit0rev().orbit2();
+      TT_[dh.t()][dh.vi()] = t_target;
+    }
+    dh = Dart(*this,t_target,1,1);
+    if (!dh.onBoundary()) {
+      dh.orbit0rev().orbit2();
+      TT_[dh.t()][dh.vi()] = t_target;
+    }
+    dh = Dart(*this,t_target,1,2);
+    if (!dh.onBoundary()) {
+      dh.orbit0rev().orbit2();
+      TT_[dh.t()][dh.vi()] = t_target;
+    }
+    
+    return *this;
+  }
+
+  /*!
+    Remove a triangle.
+
+    The current implementation is slow when useVT is true.  For better
+    performance when removing many triangles, set to false while
+    removing.
+   */
+  int Mesh::removeTriangle(const int t)
+  {
+    if ((t<0) || (t>=(int)nT_))
+      return -1;
+
+    if (X11_) {
+      drawX11triangle(t,false);
+      if (!(TT_[t][0]<0)) drawX11triangle(TT_[t][0],true);
+      if (!(TT_[t][1]<0)) drawX11triangle(TT_[t][1],true);
+      if (!(TT_[t][2]<0)) drawX11triangle(TT_[t][2],true);
+    }
+
+    unlinkTriangle(t);
+    relocateTriangle(nT_-1,t);
+    nT_--;
+    if (use_VT_)
+      rebuildVT();
+    return nT_;
+  }
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1887,8 +1980,8 @@ namespace fmesh {
     if (d.v() == v) // Have we found a preexisting vertex?
       return d;
     bool onleft1(inLeftHalfspace(S_[v0],s,S_[d.v()]) >= 0.0);
-    std::cout << WHEREAMI << "Locating direction "
-	      << onleft0 << onleft1 << std::endl;
+    MESH_LOG("Locating direction "
+	     << onleft0 << onleft1 << std::endl);
     while (!(!onleft0 && onleft1) && (!d.onBoundary())) {
       d.orbit0rev();
       if (d==d0)
@@ -1898,8 +1991,8 @@ namespace fmesh {
       onleft1 = (inLeftHalfspace(S_[v0],s,S_[d.v()]) >= 0.0);
       if (d.v() == v) // Have we found a preexisting vertex?
 	return d;
-      std::cout << WHEREAMI << "Locating direction "
-		<< onleft0 << onleft1 << std::endl;
+      MESH_LOG("Locating direction "
+	       << onleft0 << onleft1 << std::endl);
     }
     if (!onleft0 && onleft1) {
       d.orbit2rev();
@@ -1945,7 +2038,7 @@ namespace fmesh {
   DartPair Mesh::tracePath(const Dart& d0,
 		       const Point& s1,
 		       const int v1,
-		       DartOrderedSet* trace) const
+		       DartList* trace) const
   {
     Dart dh;
     bool found, other;
@@ -1955,51 +2048,53 @@ namespace fmesh {
     else
       dh = Dart(*this,d0.t(),1,d0.vi());
     int v0(dh.v());
-    std::cout << WHEREAMI << "Locating point " << s1
-	      << " v0=" << v0
-	      << " v1=" << v1
-	      << std::endl;
+    MESH_LOG("Locating point " << s1
+	     << " v0=" << v0
+	     << " v1=" << v1
+	     << std::endl);
     Dart d(findPathDirection(dh,s1,v1));
-    std::cout << WHEREAMI << "Path-direction " << d << std::endl;
-    std::cout << WHEREAMI << "Starting triangle " << d.t() << " ("
-	      << TV_[d.t()][0] << ","
-	      << TV_[d.t()][1] << ","
-	      << TV_[d.t()][2] << ")"
-	      << std::endl;
+    MESH_LOG("Path-direction " << d << std::endl);
+    MESH_LOG("Starting triangle " << d.t() << " ("
+	     << TV_[d.t()][0] << ","
+	     << TV_[d.t()][1] << ","
+	     << TV_[d.t()][2] << ")"
+	     << std::endl);
     if (d.isnull()) {
-      std::cout << WHEREAMI << "Not found" << std::endl;
+      MESH_LOG("Not found" << std::endl);
       return DartPair(Dart(),Dart());
     }
     Dart dstart = d;
     while (dstart.v() != d0.v())
       dstart.orbit2rev();
-    std::cout << WHEREAMI << "Starting dart " << dstart << std::endl;
-    if ((d.v() == v1) || (inLeftHalfspace(d,s1) >= -MESH_EPSILON)) {
-      std::cout << WHEREAMI << "Found " << d << std::endl;
+    MESH_LOG("Starting dart " << dstart << std::endl);
+    if ((d.v() == v1) || (d.inLeftHalfspace(s1) >= -MESH_EPSILON)) {
+      MESH_LOG("Found " << d << std::endl);
       return DartPair(dstart,d);
     }
     while (!d.onBoundary()) {
-      if (trace)
-	trace->insert(DartOrderedSet::value_type(trace_index++,d));
+      if (trace) {
+	trace->push_back(d);
+	trace_index++;
+      }
       d.orbit1().orbit2rev();
-      std::cout << WHEREAMI << "In triangle " << d << std::endl;
+      MESH_LOG("In triangle " << d << std::endl);
       if (d.v() == v1) {
-	std::cout << WHEREAMI << "Found vertex at " << d << std::endl;
+	MESH_LOG("Found vertex at " << d << std::endl);
 	return DartPair(dstart,d);
       }
-      found = (inLeftHalfspace(d,s1) >= -MESH_EPSILON);
+      found = (d.inLeftHalfspace(s1) >= -MESH_EPSILON);
       other = (inLeftHalfspace(S_[v0],s1,S_[d.v()]) > 0.0);
       d.orbit2rev();
-      if (found && (inLeftHalfspace(d,s1) >= -MESH_EPSILON))
+      if (found && (d.inLeftHalfspace(s1) >= -MESH_EPSILON))
 	return DartPair(dstart,d);
       else
 	found = false;
       if (!other)
 	d.orbit2();
-      std::cout << WHEREAMI << "Go to next triangle, from " << d << std::endl;
+      MESH_LOG("Go to next triangle, from " << d << std::endl);
     }
-    std::cout << WHEREAMI << "Endpoint not found "
-	      << dstart << " " << d << std::endl;
+    MESH_LOG("Endpoint not found "
+	     << dstart << " " << d << std::endl);
     return DartPair(dstart,Dart());
   }
 
@@ -2043,7 +2138,7 @@ namespace fmesh {
 	return Dart(*this,t,1,1);
       if (TV_[t][2] == v)
 	return Dart(*this,t,1,2);
-      std::cout << WHEREAMI << "ERROR: Inconsistent data structures!" << std::endl;
+      MESH_LOG("ERROR: Inconsistent data structures!" << std::endl);
       return Dart(); /* ERROR: Inconsistent data structures! */
     }
 
@@ -2217,7 +2312,6 @@ namespace fmesh {
 
   std::ostream& operator<<(std::ostream& output, const Dart& d)
   {
-    return output;
     output << "D=("
 	   <<std::right << std::setw(1) << d.t_
 	   << std::right << std::setw(2) << d.edir_
@@ -2225,16 +2319,23 @@ namespace fmesh {
 	   << ")";
     if ((!d.isnull()) && (d.t_<(int)d.M()->nT())) {
       output << " EV=("
-	     << d.M()->TV()[d.t_][d.vi_]
+	     << d.M()->TV(d.t_)[d.vi_]
 	     << ","
-	     << d.M()->TV()[d.t_][(d.vi_+(3+d.edir_))%3]
+	     << d.M()->TV(d.t_)[(d.vi_+(3+d.edir_))%3]
 	     << ")";
       output << " TV=("
-	     << d.M()->TV()[d.t_][0]
+	     << d.M()->TV(d.t_)[0]
 	     << ","
-	     << d.M()->TV()[d.t_][1]
+	     << d.M()->TV(d.t_)[1]
 	     << ","
-	     << d.M()->TV()[d.t_][2]
+	     << d.M()->TV(d.t_)[2]
+	     << ")";
+      output << " TT=("
+	     << d.M()->TT(d.t_)[0]
+	     << ","
+	     << d.M()->TT(d.t_)[1]
+	     << ","
+	     << d.M()->TT(d.t_)[2]
 	     << ")";
     }
       
