@@ -6964,12 +6964,15 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 
 			char *m;
 
-			order = -1;
+			order = 1;
 			order = iniparser_getint(ini, inla_string_join(secname, "T_ORDER"), order);
 			order = iniparser_getint(ini, inla_string_join(secname, "T.ORDER"), order);
 			order = iniparser_getint(ini, inla_string_join(secname, "TORDER"), order);
 			mb->f_Torder[mb->nf] = order;
 
+			if (mb->f_Torder[mb->nf] != 1)
+				FIXME("I am not sure of f_Torder need to be used!");
+			
 			m = iniparser_getstring(ini, inla_string_join(secname, "T_MODEL"), GMRFLib_strdup("GENERAL"));
 			m = iniparser_getstring(ini, inla_string_join(secname, "T.MODEL"), m);
 			m = iniparser_getstring(ini, inla_string_join(secname, "TMODEL"), m);
@@ -6983,16 +6986,22 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 				exit(1);
 			}
 
+			FIXME("Do not need T_MODEL I think.");
+
 			if (mb->verbose) {
 				printf("\t\tT.order=[%1d]\n", mb->f_Torder[mb->nf]);
 				printf("\t\tT.type=[%s]\n", m);
 			}
 
-			order = -1;
+			order = 1;
 			order = iniparser_getint(ini, inla_string_join(secname, "K_ORDER"), order);
 			order = iniparser_getint(ini, inla_string_join(secname, "K.ORDER"), order);
 			order = iniparser_getint(ini, inla_string_join(secname, "KORDERK"), order);
 			mb->f_Korder[mb->nf] = order;
+
+			if (mb->f_Korder[mb->nf] != 1)
+				FIXME("I am not sure of f_Torder need to be used!");
+			
 
 			m = iniparser_getstring(ini, inla_string_join(secname, "K.MODEL"), GMRFLib_strdup("GENERAL"));
 			m = iniparser_getstring(ini, inla_string_join(secname, "K_MODEL"), m);
@@ -7006,6 +7015,8 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 				inla_error_general(msg);
 				exit(1);
 			}
+
+			FIXME("Do not need K_MODEL I think.");
 
 			if (mb->verbose) {
 				printf("\t\tK.order=[%1d]\n", mb->f_Korder[mb->nf]);
@@ -7343,14 +7354,14 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 
 	case F_SPDE:
 	{
-		char *spde_dir;
+		char *spde_prefix;
 
-		spde_dir = GMRFLib_strdup(".");
-		spde_dir = iniparser_getstring(ini, inla_string_join(secname, "SPDE_DIR"), spde_dir);
-		spde_dir = iniparser_getstring(ini, inla_string_join(secname, "SPDE.DIR"), spde_dir);
-		spde_dir = iniparser_getstring(ini, inla_string_join(secname, "SPDEDIR"), spde_dir);
+		spde_prefix = GMRFLib_strdup(".");
+		spde_prefix = iniparser_getstring(ini, inla_string_join(secname, "SPDE_PREFIX"), spde_prefix);
+		spde_prefix = iniparser_getstring(ini, inla_string_join(secname, "SPDE.PREFIX"), spde_prefix);
+		spde_prefix = iniparser_getstring(ini, inla_string_join(secname, "SPDEPREFIX"), spde_prefix);
 		if (mb->verbose) {
-			printf("\t\tspde.dir = [%s]\n", spde_dir);
+			printf("\t\tspde.prefix = [%s]\n", spde_prefix);
 		}
 
 		spde_basis_model_tp modelT, modelK;
@@ -7378,13 +7389,13 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		/*
 		 * 
 		 */
-		inla_spde_build_model(&spde_model_orig, (const char *) spde_dir, &modelT, &modelK);
+		inla_spde_build_model(&spde_model_orig, (const char *) spde_prefix, &modelT, &modelK);
 		mb->f_model[mb->nf] = (void *) spde_model_orig;
 
 		/*
 		 * The _userfunc0 must be set directly after the _build_model() call. This is a bit dirty; FIXME later. 
 		 */
-		inla_spde_build_model(&spde_model, (const char *) spde_dir, &modelT, &modelK);
+		inla_spde_build_model(&spde_model, (const char *) spde_prefix, &modelT, &modelK);
 		GMRFLib_ai_INLA_userfunc0 = (GMRFLib_ai_INLA_userfunc0_tp *) inla_spde_userfunc0;
 		GMRFLib_ai_INLA_userfunc1 = (GMRFLib_ai_INLA_userfunc1_tp *) inla_spde_userfunc1;
 		GMRFLib_ai_INLA_userfunc1_dim = mb->ntheta;    /* this is a hack and gives the offset of theta... */
@@ -7408,8 +7419,12 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		if (modelT.order < 0 && modelK.order < 0) {
 			mb->f_ntheta[mb->nf] = 0;
 		} else {
-			nT = spde_basis_n(&modelT);
-			nK = spde_basis_n(&modelK);
+			nT = modelT.order;
+			nK = modelK.order;
+
+			P(nT);
+			P(nK);
+			
 			mb->f_ntheta[mb->nf] = nT + nK + 1;
 
 			if (mb->verbose) {
