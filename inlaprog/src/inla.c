@@ -4122,20 +4122,41 @@ inla_tp *inla_build(const char *dict_filename, int verbose, int make_dir)
 	/*
 	 * type = lincomb
 	 */
+	int numsec = 0;
 	for (sec = 0; sec < nsec; sec++) {
+		
 		secname = GMRFLib_strdup(iniparser_getsecname(ini, sec));
 		sectype = GMRFLib_strdup(strupc(iniparser_getstring(ini, inla_string_join((const char *) secname, "TYPE"), NULL)));
 		if (!strcmp(sectype, "LINCOMB")) {
+
+			/* 
+			   we need to implement this here, as the number of linear combinations can get really huge and we need to surpress the verbose mode just
+			   for these sections.
+			 */
+			int verbose_save = mb->verbose;
+
+			// This option can surpress mb->verbose locally, but not the other way around.
+			mb->verbose = iniparser_getint(ini, inla_string_join(secname, "VERBOSE"), mb->verbose) && mb->verbose;
+
 			if (mb->verbose) {
 				printf("\tsection=[%1d] name=[%s] type=[LINCOMB]\n", sec, iniparser_getsecname(ini, sec));
 			}
 			found++;
 			sec_read[sec] = 1;
 			inla_parse_lincomb(mb, ini, sec);
+
+			mb->verbose = verbose_save;	       /* set it back */
+			numsec++;
 		}
 		Free(secname);
 		Free(sectype);
 	}
+	if (mb->verbose) {
+		if (numsec) {
+			printf("\tRead [%1d] sections with mode=[LINCOMB]\n", numsec);
+		}
+	}
+		
 
 	/*
 	 * check that all sections are read 
@@ -4317,6 +4338,7 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 	mb->lc_usermap = Realloc(mb->lc_usermap, mb->nlc + 1, map_table_tp *);
 	mb->lc_tag[mb->nlc] = secname = GMRFLib_strdup(iniparser_getsecname(ini, sec));
 	mb->lc_dir[mb->nlc] = GMRFLib_strdup(iniparser_getstring(ini, inla_string_join(secname, "DIR"), inla_fnmfix(GMRFLib_strdup(mb->lc_tag[mb->nlc]))));
+
 	if (mb->verbose) {
 		printf("\tinla_parse_lincomb...\n");
 	}
@@ -4427,7 +4449,7 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 	/* 
 	   sort them with increasing idx's (and carry the weights along) to speed things up later on.
 	*/
-	GMRFLib_qsorts((void *) lc->idx, (size_t) lc->n, sizeof(int), (void *) lc->weight, sizeof(float), NULL, NULL, GMRFLib_icmp);
+	GMRFLib_qsorts((void *) lc->idx, (size_t) lc->n, sizeof(int), (void *) lc->weight, sizeof(float), NULL, 0, GMRFLib_icmp);
 	if (mb->verbose) {
 		printf("\t\tLincomb =    idx\tweight\n");
 		for (i = 0; i < IMIN(lc->n, PREVIEW); i++) {
@@ -4503,14 +4525,13 @@ int inla_parse_mode(inla_tp * mb, dictionary * ini, int sec)
 			   this is new code that use binary i/o
 			*/
 			FILE *fp;
-			size_t siz;
 			size_t nread;
 			
 			//format: NX x[0] x[1] .... x[ NX-1 ]
 			fp = fopen(tmp, "rb");
 			nread= fread(&(mb->nx_file), sizeof(int), 1, fp); assert(nread == 1);
 			mb->x_file = Calloc(mb->nx_file, double);
-			nread = fread(mb->x_file, sizeof(double), mb->nx_file, fp); assert(nread == mb->nx_file);
+			nread = fread(mb->x_file, sizeof(double), mb->nx_file, fp); assert(nread == (size_t) mb->nx_file);
 			fclose(fp);
 
 			if (mb->verbose) {
@@ -10169,6 +10190,10 @@ int inla_parse_INLA(inla_tp * mb, dictionary * ini, int sec, int make_dir)
 	if (mb->expert_diagonal_emergencey && mb->verbose) {
 		printf("\tdiagonal (expert emergency) = %g\n", mb->expert_diagonal_emergencey);
 	}
+
+	mb->ai_par->numint_max_fn_eval = iniparser_getint(ini, inla_string_join(secname, "NUMINT.MAXFEVAL"), mb->ai_par->numint_max_fn_eval);
+	mb->ai_par->numint_rel_err = iniparser_getdouble(ini, inla_string_join(secname, "NUMINT.RELERR"), mb->ai_par->numint_rel_err);
+	mb->ai_par->numint_abs_err = iniparser_getdouble(ini, inla_string_join(secname, "NUMINT.ABSERR"), mb->ai_par->numint_abs_err);
 
 	if (mb->verbose) {
 		GMRFLib_print_ai_param(stdout, mb->ai_par);

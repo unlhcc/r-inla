@@ -385,6 +385,13 @@
     if (!is.null(inla.spec$diagonal) && inla.spec$diagonal >= 0.0)
         cat("diagonal = ", inla.spec$diagonal, "\n", sep = " ", file = file,  append = TRUE)
         
+    if (!is.null(inla.spec$numint.maxfeval))
+        cat("numint.maxfeval = ", as.integer(inla.spec$numint.maxfeval), "\n", file = file, append = TRUE)
+    if (!is.null(inla.spec$numint.relerr))
+        cat("numint.relerr = ", inla.spec$numint.relerr, "\n", file = file, append = TRUE)
+    if (!is.null(inla.spec$numint.abserr))
+        cat("numint.abserr = ", inla.spec$numint.abserr, "\n", file = file, append = TRUE)
+
     cat("\n", sep = " ", file = file,  append = TRUE)
 }
 
@@ -672,6 +679,7 @@
                 cat("precision = ", contr$precision,"\n", sep = " ", file = file,  append = TRUE)
             if (!is.null(contr$usermap))
                 cat("usermap = ", contr$usermap,"\n", sep = " ", file = file,  append = TRUE)
+            inla.write.boolean.field("verbose", contr$verbose, file)
 
             cat("file.offset = ", seek(fp.binary, where=NA), "\n", sep="", file = file, append = TRUE)
             
