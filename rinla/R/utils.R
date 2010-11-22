@@ -257,19 +257,22 @@
 }
 `inla.call.builtin` = function()
 {
-    if (inla.os("mac"))
+    if (inla.os("mac")) {
         fnm = system.file("bin/mac/inla", package="INLA")
-    else if (inla.os("linux"))
-        fnm = system.file("bin/linux/inla", package="INLA")
-    else if (inla.os("windows"))
+    } else if (inla.os("linux")) {
+        fnm = system.file(paste("bin/linux/inla",
+                inla.os.32or64bit(), sep=""), package="INLA")
+    } else if (inla.os("windows")) {
         fnm = system.file("bin/windows/inla.exe", package="INLA")
-    else
+    } else {
         stop("Unknown OS")
+    }
 
-    if (file.exists(fnm))
+    if (file.exists(fnm)) {
         return (fnm)
-    else
+    } else {
         stop(paste("INLA installation error; no such file",fnm))
+    }
 }
 `inla.fmesher.call.builtin` = function()
 {
@@ -432,9 +435,8 @@
 }
 `inla.only.for.developers` = function()
 {
-    require(R.utils)
-    if (!is.element(getUsername.System(),
-                   c("hrue", "martino", "finnkrl", "finn")))
+    if (!is.element(Sys.getenv("USER"),
+                    c("hrue", "martino", "finnkrl", "finn")))
         stop("This function is for developers only.")
     return (invisible())
 }
