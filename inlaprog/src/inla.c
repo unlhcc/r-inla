@@ -3813,8 +3813,8 @@ int inla_read_prior_generic(inla_tp * mb, dictionary * ini, int sec, Prior_tp * 
 			}
 		} else {
 			prior->parameters = Calloc(2, double);
-			prior->parameters[0] = 10.0;
-			prior->parameters[1] = 10.0;
+			prior->parameters[0] = 25.0;
+			prior->parameters[1] = 25.0;
 		}
 		if (mb->verbose) {
 			printf("\t\t%s->%s=[%g, %g]\n", prior_tag, param_tag, prior->parameters[0], prior->parameters[1]);
@@ -12771,7 +12771,7 @@ int inla_output(inla_tp * mb)
 			}
 
 			if (mb->misc_output) {
-				inla_output_misc(mb->dir, mb->misc_output, local_verbose);
+				inla_output_misc(mb->dir, mb->misc_output, mb->ntheta, mb->theta_tag, local_verbose);
 			}
 			if (mb->cpo) {
 				inla_output_detail_cpo(mb->dir, mb->cpo, mb->predictor_ndata, local_verbose);
@@ -13017,7 +13017,7 @@ int inla_output_detail_dic(const char *dir, GMRFLib_ai_dic_tp * dic, int verbose
 	Free(nndir);
 	return INLA_OK;
 }
-int inla_output_misc(const char *dir, GMRFLib_ai_misc_output_tp * mo, int verbose)
+int inla_output_misc(const char *dir, GMRFLib_ai_misc_output_tp * mo, int ntheta, char **theta_tag, int verbose)
 {
 	/*
 	 * output whatever is requested.... 
@@ -13042,6 +13042,13 @@ int inla_output_misc(const char *dir, GMRFLib_ai_misc_output_tp * mo, int verbos
 			printf("\t\tstore misc-output in[%s]\n", ndir);
 		}
 	}
+
+	GMRFLib_sprintf(&nndir, "%s/theta-tags", ndir);
+	fp = fopen(nndir, "w");
+	for (i = 0; i < ntheta; i++) {
+		fprintf(fp, "%s\n", theta_tag[i]);
+	}
+	fclose(fp);
 
 	GMRFLib_sprintf(&nndir, "%s/%s", ndir, "covmat-hyper-internal.dat");
 	inla_fnmfix(nndir);
