@@ -227,12 +227,7 @@
     inla.write.boolean.field("skip.configurations", inla.spec$skip.configurations, file)
     inla.write.boolean.field("mode.known", inla.spec$mode.known.conf, file)
     inla.write.boolean.field("adjust.weights", inla.spec$adjust.weights, file)
-
     inla.write.boolean.field("lincomb.derived.only", inla.spec$lincomb.derived.only, file)
-    inla.write.boolean.field("lincomb.one.output.file", inla.spec$lincomb.one.output.file, file)
-    if (!inla.spec$lincomb.derived.only && inla.spec$lincomb.one.output.file) {
-        stop("Cannot have ((lincomb.derived.only == FALSE) && (lincomb.one.output.file == TRUE))")
-    }
 
     if (!is.null(inla.spec$restart) && inla.spec$restart >= 0) {
         cat("restart = ", as.integer(inla.spec$restart), "\n", file = file, sep = " ", append = TRUE)
@@ -324,9 +319,6 @@
 
     inla.write.hyper(predictor.spec$hyper, file)
 
-    if (!is.null(predictor.spec$predictor.usermap)){
-        cat("predictor.usermap=", predictor.spec$predictor.usermap, "\n", sep=" ", file = file, append = TRUE)
-    }
     if (!is.null(predictor.spec$cross) && length(predictor.spec$cross) > 0) {
         if (length(predictor.spec$cross) != n + m) {
             stop(paste("Length of cross does not match the total length of predictor", length(predictor.spec$cross), "!=", n+m))
@@ -594,9 +586,6 @@
             cat("type = lincomb\n", sep = " ", file = file,  append = TRUE)
             if (!is.null(contr$precision)) {
                 cat("precision = ", contr$precision,"\n", sep = " ", file = file,  append = TRUE)
-            }
-            if (!is.null(contr$usermap)) {
-                cat("usermap = ", contr$usermap,"\n", sep = " ", file = file,  append = TRUE)
             }
             inla.write.boolean.field("verbose", contr$verbose, file)
 

@@ -11,7 +11,7 @@
              ...)
 {
     if (plot.fixed.effects) {
-        ##plot marginals for the fixed effects
+        ## plot marginals for the fixed effects
         fix = x$marginals.fixed
         labels.fix = names(x$marginals.fixed)
         nf = length(labels.fix)
@@ -45,162 +45,14 @@
     }
 
     if (plot.lincomb) {
-        ## derived from plot.random....
-        rand = x$summary.lincomb
-        labels.lincomb = names(x$summary.lincomb)
-        nr = length(labels.lincomb)
-        if (nr>0) {
-            for(i in 1:nr) {
-                if (!all(is.na(rand[[i]]))) {
-                    rr = rand[[i]]
-                    dim1 = dim(rr)[1]
-                    dim2 = dim(rr)[2]
-                    tp = ifelse(labels.lincomb[i] == "baseline.hazard", "s", "l")
-
-                    r.n = x$size.lincomb[[i]]$n
-                    r.N = x$size.lincomb[[i]]$N
-                    r.Ntotal = x$size.lincomb[[i]]$Ntotal
-                    nrep = x$size.lincomb[[i]]$nrep
-                    ngroup = x$size.lincomb[[i]]$ngroup
-                    r.n.orig = r.n %/% ngroup
-                    r.N.orig = r.N %/% ngroup
-
-                    ## determine the plot-layout here
-                    nrr = ngroup*nrep
-                    if (nrr == 1) {
-                        plot.layout = c(1, 1)
-                    } else if (nrr == 2) {
-                        plot.layout = c(2, 1)
-                    } else {
-                        plot.layout = c(3, 3)
-                    }
-                    np = prod(plot.layout)
-                    ip = 0
-
-                    if (r.n > 1) {
-                        for (r.rep in 1:nrep) {
-                            for (r.group in 1:ngroup) {
-                                for(ii in 1:inla.ifelse(r.N > r.n, r.N %/% r.n, 1)) {
-
-                                    if (ip%%np == 0) {
-                                        dev.new()
-                                        par(mfrow=c(plot.layout[1], plot.layout[2]))
-                                    }
-                                    ip = ip + 1
-
-                                    rep.txt = ""
-                                    if (nrep > 1) {
-                                        rep.txt = paste(rep.txt, " rep:", r.rep, sep="")
-                                    }
-                                    if (ngroup > 1) {
-                                        rep.txt = paste(rep.txt, " group:", r.group, sep="")
-                                    }
-                                    if (r.N > r.n) {
-                                        rep.txt = paste(rep.txt, " part:", ii, sep="")
-                                    }
-                            
-                                    idx = (r.rep-1)*r.N +  (r.group-1)*r.N.orig + (ii-1)*r.n.orig + (1:r.n.orig)  
-                            
-                                    ## if the dimension is > 1, then plot the means++
-                                    ##
-                                    xval = NULL
-                                    if (tp == "s") ## baseline.hazard
-                                    {
-                                        xval= x$.internal$baseline.hazard.cutpoints
-                                        yval = rr[, colnames(rr)=="mean"][idx]
-                                        yval = c(yval, yval[length(yval)])
-                                        plot(xval, yval,
-                                             ylim=range(rr[, setdiff(colnames(rr), c("ID", "sd", "kld"))]),
-                                             xlim=range(xval),
-                                             axes=FALSE, ylab="", xlab="", type=tp, lwd=2, ...)
-                                        if (!is.null(x$.internal$baseline.hazard.strata.coding)) {
-                                            rep.txt = inla.paste(c(rep.txt, "[",
-                                                    x$.internal$baseline.hazard.strata.coding[r.rep], "]"), sep="")
-                                        }
-                                    } else {
-                                        xval = rr[, colnames(rr)=="ID"][idx]
-                                        yval = rr[, colnames(rr)=="mean"][idx]
-                                        plot(xval, yval,
-                                             ylim=range(rr[, setdiff(colnames(rr), c("ID", "sd", "kld"))]),
-                                             xlim=range(xval),
-                                             axes=FALSE, ylab="", xlab="", type=tp, lwd=2, ...)
-                                    }
-                                    axis(1)
-                                    axis(2)
-                                    box()
-                    
-                                    lq = grep("quan", colnames(rr))
-                                    main=inla.nameunfix(labels.lincomb[i])
-
-                                    if (length(lq)>0) {
-                                        qq = rr[, lq]
-                                        dq = dim(qq)[2]
-                                        sub = paste("PostMean ")
-                                        for(j in 1:dq) {
-                                            yval = qq[, j][idx]
-                                            ## this is the baseline.hazard case
-                                            if (length(yval)+1 == length(xval)) {
-                                                yval = c(yval, yval[ length(yval) ])
-                                            }
-                                            points(xval, yval, type=tp, lty=2)
-                                            sub = gsub("quant", "%", paste(sub, colnames(qq)[j]))
-                                        }
-                                        title(main=inla.nameunfix(main), sub=paste(inla.nameunfix(sub), rep.txt))
-                                    }
-                                    else
-                                        title(main=inla.nameunfix(main), sub=paste("Posterior mean", rep.txt))
-                                }
-                            }
-                        }
-                    } else {
-                        for (r.rep in 1:nrep) {
-                            for(r.group in 1:ngroup) {
-                                if (ip%%np == 0) {
-                                    dev.new()
-                                    par(mfrow=c(plot.layout[1], plot.layout[2]))
-                                }
-                                ip = ip + 1
-
-                                rep.txt = ""
-                                if (nrep > 1) {
-                                    rep.txt = paste(rep.txt, ", replicate", r.rep)
-                                }
-                                if (ngroup > 1) {
-                                    rep.txt = paste(rep.txt, ", group", r.group)
-                                }
-                            
-                                idx = (r.rep-1)*ngroup + r.group
-                            
-                                ## if the dimension is 1, the plot the marginals
-                                ##
-                                if (!is.null(x$marginals.lincomb[[i]])) {
-                                    zz = x$marginals.lincomb[[i]][[r.rep]]
-                                    plot(inla.spline(zz), type="l",
-                                         main=paste("PostDens [", inla.nameunfix(labels.lincomb[i]),"]", " ", rep.txt, sep=""),
-                                         xlab=inla.nameunfix(labels.lincomb[i]), ylab="", ...)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    ### this is OLD CODE. REMOVE LATER
-    if (FALSE && plot.lincomb) {
-
-        stop("NOT IN USE")
-
-        ##plot marginals for the lincombs
-        fix = x$marginals.lincomb
-        labels.fix = names(x$marginals.lincomb)
+        ##plot marginals for the derived lincombs
+        fix = x$marginals.lincomb.derived
+        labels.fix = names(x$marginals.lincomb.derived)
         nf = length(labels.fix)
         if (nf>0) {
             if (nf == 1) {
                 plot.layout = c(1, 1)
-            }
-            else if (nf == 2) {
+            } else if (nf == 2) {
                 plot.layout = c(2, 1)
             } else {
                 plot.layout = c(3, 3)
@@ -216,13 +68,56 @@
                 }
                 ip = ip + 1
                 
-                ss = x$summary.lincomb[i,]
-                sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
-                plot(inla.spline(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"]", sep=""),
-                     sub=sub, xlab="", ylab="", ...)
+                if (!all(is.na(fix[[i]]))) {
+                    ss = x$summary.lincomb.derived[i,]
+                    sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
+                    plot(inla.spline(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"] (derived)", sep=""),
+                         sub=sub, xlab="", ylab="", ...)
+                }
             }
         }
     }
+
+    if (plot.lincomb) {
+        ## plot marginals for the lincombs
+        if (inla.is.element("marginals.lincomb", x)) {
+            fix = x$marginals.lincomb
+            labels.fix = names(x$marginals.lincomb)
+        } else {
+            fix = NULL
+            labels.fix = NULL
+        }
+        nf = length(labels.fix)
+        if (nf>0) {
+            if (nf == 1) {
+                plot.layout = c(1, 1)
+            } else if (nf == 2) {
+                plot.layout = c(2, 1)
+            } else {
+                plot.layout = c(3, 3)
+            }
+            np = prod(plot.layout)
+            par(mfrow=c(plot.layout[1], plot.layout[2]))
+
+            ip = 0
+            for(i in 1:nf) {
+                if (ip%%np == 0) {
+                    dev.new()
+                    par(mfrow=c(plot.layout[1], plot.layout[2]))
+                }
+                ip = ip + 1
+                
+                if (!all(is.na(fix[[i]]))) {
+                    ss = x$summary.lincomb[i,]
+                    sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
+                    plot(inla.spline(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"]", sep=""),
+                         sub=sub, xlab="", ylab="", ...)
+                }
+            }
+        }
+    }
+
+
     if (plot.random.effects) {
         rand = x$summary.random
         labels.random = names(x$summary.random)
@@ -403,11 +298,9 @@
         if (!is.null(n)) {
             lp = x$summary.linear.predictor
             fv = x$summary.fitted.values
-            fvu = x$summary.linear.predictor.usermap
             ## remove the 'kld' column, we do not need it
             lp = lp[, names(lp) != "kld"]
             fv = fv[, names(fv) != "kld"]
-            fvu = fvu[, names(fvu) != "kld"]
             A = (x$size.linear.predictor$nrep == 2)
 
             if (A) {
@@ -441,9 +334,6 @@
                     if (!is.null(fv)) {
                         par(mfrow=c(2, 1))
                     }
-                    if (!is.null(fvu)) {
-                        par(mfrow=c(3, 1))
-                    }
                     plot(plot.idx, lp[idx, colnames(lp)=="mean"], ylim=range(lp[idx, names(lp) != "sd"]), ylab="", xlab="Index", type="l", lwd=2, ...)
                     lq = grep("quan", colnames(lp))
                     if (length(lq)>0) {
@@ -475,24 +365,6 @@
                         else 
                             title(main=paste("Fitted values (inv.link(lin.pred))", msg, inla.nameunfix(labels.random[i])))
                     }
-                    if (!is.null(fvu)) {
-                        plot(plot.idx, fvu[idx, colnames(fvu)=="mean"], ylim=range(fvu[idx, names(fvu) != "sd"]), ylab="", xlab="Index", type="l", lwd=2, ...)
-                        lq = grep("quan", colnames(fvu))
-                        if (length(lq)>0) {
-                            qq = fvu[, lq]
-                            dq = dim(qq)[2]
-                            sub = paste("Posterior mean together with ")
-                            for(j in 1:dq) {
-                                points(plot.idx, qq[idx, j], type="l", lty=2)
-                                sub = paste(sub, colnames(qq)[j])
-                            }
-                            title(main=paste("Usermap transformed values (usermap(lin.pred))", msg),
-                                  sub = inla.nameunfix(sub))
-                        }
-                        else 
-                            title(main=paste("Usermap transformed values (usermap(lin.pred))", msg,
-                                          inla.nameunfix(labels.random[i])))
-                    }          
                 }
             }
         }

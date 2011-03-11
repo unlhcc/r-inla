@@ -8,9 +8,6 @@
          ##:ARGUMENT: precision The precision for the artificial tiny noise. Default 1e09.
          precision = NULL, 
 
-         ##:ARGUMENT: usermap One of the predefined functions to transform the linear combinations with. Default NULL.
-         usermap = NULL,
-
          ##:ARGUMENT: verbose Use verbose mode for linear combinations if verbose model is set globally. (Default TRUE)
          verbose = TRUE)
 
@@ -247,9 +244,6 @@
             ##:ARGUMENT: derived.only A boolen variable: if TRUE the only compute the marginals for the derived linear combinations and if FALSE, the and also the linear combinations to the graph (Default TRUE)
             lincomb.derived.only = TRUE,
 
-            ##:ARGUMENT: lincomb.one.output.file A boolen variable: write all lincombs to one output file (the names will then be missing!) (Default FALSE)
-            lincomb.one.output.file= FALSE,
-
             ## NOT DOCUMENTED ONCES (expert only)
             diagonal = NULL,
 
@@ -306,9 +300,6 @@
          ##:ARGUMENT: cross Cross-sum-to-zero constraints
          cross=NULL,
          
-         ##:ARGUMENT: predictor.usermap One of the predfined mappings to compute new marginals for
-         predictor.usermap=NULL,
-
          ##:ARGUMENT: A The observation matrix A = list(i=..., j=..., values=...) or a filename.
          A = NULL,
 

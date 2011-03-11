@@ -422,7 +422,6 @@ struct inla_tp_struct {
 	int predictor_fixed;
 	int predictor_user_scale;
 	map_func_tp **predictor_linkfunc;		       /* these are rebuilt */
-	map_table_tp *predictor_usermap;
 	Output_tp *predictor_output;
 	double *offset;					       /* the offset y ~ f(eta + offset) */
 
@@ -491,7 +490,6 @@ struct inla_tp_struct {
 	char **f_same_as;
 	double *f_precision;
 	Output_tp **f_output;
-	map_table_tp **f_usermap;
 
 	GMRFLib_Qfunc_tp ***ff_Qfunc;			       /* interactions */
 	void ***ff_Qfunc_arg;
@@ -507,19 +505,16 @@ struct inla_tp_struct {
 	double *linear_mean;
 	int *linear_compute;
 	Output_tp **linear_output;
-	map_table_tp **linear_usermap;
 
 	/*
 	 * linear combinations 
 	 */
 	int nlc;					       /* number of linear combinations */
 	int lc_derived_only;				       /* use only the derived lincombs ? */
-	int lc_one_output_file;				       /* Use one output file only ? */
 	char **lc_tag;					       /* the tags */
 	double *lc_prec;				       /* the `high' precision */
 	char **lc_dir;
 	Output_tp **lc_output;
-	map_table_tp **lc_usermap;
 	GMRFLib_lc_tp **lc_lc;
 
 	/*
@@ -533,7 +528,6 @@ struct inla_tp_struct {
 	char **theta_dir;
 	map_func_tp **theta_map;
 	void **theta_map_arg;
-	map_table_tp **theta_usermap;
 	int *off_compute;
 	char **off_modelname;
 	int *off_id;
@@ -791,7 +785,7 @@ int inla_make_iid3d_graph(GMRFLib_graph_tp ** graph, inla_iid3d_arg_tp * arg);
 int inla_mkdir(const char *dirname);
 int inla_ncpu(void);
 int inla_output(inla_tp * mb);
-int inla_output_names(const char *dir, const char *sdir, int n, const char **names);
+int inla_output_names(const char *dir, const char *sdir, int n, const char **names, const char *suffix);
 int inla_output_Q(inla_tp * mb, const char *dir, GMRFLib_graph_tp * graph);
 int inla_output_detail(const char *dir, GMRFLib_density_tp ** density, GMRFLib_density_tp ** gdensity, double *locations, int n, int nrep, Output_tp * output,
 		       const char *sdir, map_func_tp * func, void *func_arg, map_func_tp ** ffunc, const char *tag, const char *modelname, int verbose);
