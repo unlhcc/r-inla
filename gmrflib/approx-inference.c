@@ -2953,7 +2953,7 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 		    GMRFLib_logl_tp * loglFunc, void *loglFunc_arg, char *fixed_value,
 		    GMRFLib_graph_tp * graph, GMRFLib_Qfunc_tp * Qfunc, void *Qfunc_arg,
 		    GMRFLib_constr_tp * constr, GMRFLib_ai_param_tp * ai_par, GMRFLib_ai_store_tp * ai_store,
-		    int nlin, GMRFLib_lc_tp ** Alin, GMRFLib_density_tp *** dlin, GMRFLib_ai_misc_output_tp ** misc_output)
+		    int nlin, GMRFLib_lc_tp ** Alin, GMRFLib_density_tp *** dlin, GMRFLib_ai_misc_output_tp * misc_output)
 {
 	/*
 	 * 
@@ -2977,7 +2977,7 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 				improved_mean[_i] = ai_store->problem->mean_constr[_i]; \
 			}						\
 		}							\
-		GMRFLib_ai_compute_lincomb(&(lin_dens[dens_count]), NULL, nlin, Alin, _store, improved_mean); \
+		GMRFLib_ai_compute_lincomb(&(lin_dens[dens_count]), (lin_cross ? &(lin_cross[dens_count]) : NULL), nlin, Alin, _store, improved_mean); \
 		Free(improved_mean);					\
 	}
 
@@ -2994,6 +2994,9 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 			lin_dens = Realloc(lin_dens, hyper_len, GMRFLib_density_tp **); \
 			for(ii_ = old_hyper_len; ii_ < hyper_len; ii_++) \
 				lin_dens[ii_] = NULL;			\
+			if (misc_output && misc_output->compute_corr_lin){ \
+				lin_cross = Realloc(lin_cross, hyper_len, double *); \
+			}						\
 		}							\
 	}
 
@@ -3116,7 +3119,7 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 	GMRFLib_density_tp ***dens = NULL;
 	GMRFLib_density_tp ***lin_dens = NULL;
 	GMRFLib_ai_store_tp **ais = NULL;
-
+	double **lin_cross = NULL;
 
 	if (fixed_value) {
 		FIXME("\n\n\n\nGMRFLib_INLA() do not longer work with FIXED_VALUE; please write a wrapper.\n");
@@ -3140,11 +3143,7 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 	GMRFLib_ENTER_ROUTINE;
 
 	if (misc_output) {
-		*misc_output = Calloc(1, GMRFLib_ai_misc_output_tp);
-	}
-
-	if (misc_output) {
-		timer = (*misc_output)->wall_clock_time_used;
+		timer = misc_output->wall_clock_time_used;
 	} else {
 		timer = NULL;
 	}
@@ -3515,21 +3514,21 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 		GMRFLib_comp_posdef_inverse(inverse_hessian, nhyper);
 
 		if (misc_output) {
-			(*misc_output)->nhyper = nhyper;
-			(*misc_output)->cov_m = Calloc(ISQR(nhyper), double);
-			memcpy((*misc_output)->cov_m, inverse_hessian, ISQR(nhyper) * sizeof(double));
+			misc_output->nhyper = nhyper;
+			misc_output->cov_m = Calloc(ISQR(nhyper), double);
+			memcpy(misc_output->cov_m, inverse_hessian, ISQR(nhyper) * sizeof(double));
 
 			/*
 			 * I need these as well, as the correction terms needs it (and we need also the sign of the eigenvectors...). 
 			 */
-			(*misc_output)->eigenvalues = Calloc(nhyper, double);
+			misc_output->eigenvalues = Calloc(nhyper, double);
 			for (i = 0; i < nhyper; i++) {
-				(*misc_output)->eigenvalues[i] = 1.0 / gsl_vector_get(eigen_values, i);	/* need the eigenvalues of the cov.mat not hessian */
+				misc_output->eigenvalues[i] = 1.0 / gsl_vector_get(eigen_values, i);	/* need the eigenvalues of the cov.mat not hessian */
 			}
-			(*misc_output)->eigenvectors = Calloc(ISQR(nhyper), double);
+			misc_output->eigenvectors = Calloc(ISQR(nhyper), double);
 			for (i = 0; i < nhyper; i++) {
 				for (j = 0; j < nhyper; j++) {
-					(*misc_output)->eigenvectors[i + j * nhyper] = gsl_matrix_get(eigen_vectors, i, j);
+					misc_output->eigenvectors[i + j * nhyper] = gsl_matrix_get(eigen_vectors, i, j);
 				}
 			}
 		}
@@ -3589,6 +3588,9 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 		hyper_ldens = Calloc(hyper_len, double);
 		if (nlin > 0) {
 			lin_dens = Calloc(hyper_len, GMRFLib_density_tp **);
+			if (misc_output && misc_output->compute_corr_lin) {
+				lin_cross = Calloc(hyper_len, double *);
+			}
 		} else {
 			nlin = 0;
 		}
@@ -3704,11 +3706,11 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 
 
 			if (misc_output) {
-				(*misc_output)->stdev_corr_pos = Calloc(nhyper, double);
-				memcpy((*misc_output)->stdev_corr_pos, stdev_corr_pos, nhyper * sizeof(double));
+				misc_output->stdev_corr_pos = Calloc(nhyper, double);
+				memcpy(misc_output->stdev_corr_pos, stdev_corr_pos, nhyper * sizeof(double));
 
-				(*misc_output)->stdev_corr_neg = Calloc(nhyper, double);
-				memcpy((*misc_output)->stdev_corr_neg, stdev_corr_neg, nhyper * sizeof(double));
+				misc_output->stdev_corr_neg = Calloc(nhyper, double);
+				memcpy(misc_output->stdev_corr_neg, stdev_corr_neg, nhyper * sizeof(double));
 			}
 		}
 
@@ -4562,6 +4564,9 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 
 		if (nlin) {
 			lin_dens = Calloc(1, GMRFLib_density_tp **);
+			if (misc_output && misc_output->compute_corr_lin) {
+				lin_cross = Calloc(1, double *);
+			}
 		}
 		if (need_Qinv) {
 			/*
@@ -4769,6 +4774,35 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 			(*dlin)[j] = dcombine;
 		}
 		Free(dtmp);
+
+		if (misc_output && misc_output->compute_corr_lin) {
+			double *ptmp;
+			misc_output->corr_lin = ptmp = Calloc(ISQR(nlin), double);
+
+
+			for (i = 0; i < nlin; i++) {
+				for (j = i; j < nlin; j++) {
+					for (k = 0; k < dens_count; k++) {
+						ptmp[i + j * nlin] += adj_weights[k] * lin_cross[k][i + j * nlin];
+					}
+
+					/*
+					 * rescale to correlation 
+					 */
+					if (i != j) {
+						ptmp[i + j * nlin] = (ptmp[i + j * nlin]) / ((*dlin)[i]->user_stdev * (*dlin)[j]->user_stdev);
+					} else {
+						ptmp[i + j * nlin] = 1.0;
+					}
+
+					/*
+					 * just make it symmetric 
+					 */
+					ptmp[j + i * nlin] = ptmp[i + j * nlin];
+				}
+			}
+		}
+
 	}
 	if (ai_par->fp_log) {
 		fprintf(ai_par->fp_log, "Done.\n");
@@ -5182,7 +5216,6 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 						"\tCompute the marginal for theta[%1d] to theta[%1d] using numerical integration...\n", 0, nhyper - 1);
 				}
 			}
-
 #pragma omp parallel for private(k)
 			for (k = 0; k < nhyper; k++) {
 				if (!run_with_omp) {
@@ -5232,9 +5265,9 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 		if (ai_store) {
 			assert(ai_store->problem->sub_sm_fact.remap != NULL);
 
-			(*misc_output)->len_reordering = ai_store->problem->sub_graph->n;
-			(*misc_output)->reordering = Calloc((*misc_output)->len_reordering, int);
-			memcpy((*misc_output)->reordering, ai_store->problem->sub_sm_fact.remap, (*misc_output)->len_reordering * sizeof(int));
+			misc_output->len_reordering = ai_store->problem->sub_graph->n;
+			misc_output->reordering = Calloc(misc_output->len_reordering, int);
+			memcpy(misc_output->reordering, ai_store->problem->sub_sm_fact.remap, misc_output->len_reordering * sizeof(int));
 		}
 	}
 
@@ -5276,6 +5309,13 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 				GMRFLib_free_density(lin_dens[0][i]);
 			Free(lin_dens[0]);
 			Free(lin_dens);
+		}
+
+		if (lin_cross) {
+			for (i = 0; i < dens_count; i++) {
+				Free(lin_cross[i]);
+			}
+			Free(lin_cross);
 		}
 	}
 
@@ -5407,7 +5447,8 @@ int GMRFLib_ai_INLA(GMRFLib_density_tp *** density, GMRFLib_density_tp *** gdens
 
 	return GMRFLib_SUCCESS;
 }
-int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int nlin, GMRFLib_lc_tp ** Alin, GMRFLib_ai_store_tp * ai_store, double *improved_mean)
+int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cross, int nlin, GMRFLib_lc_tp ** Alin, GMRFLib_ai_store_tp * ai_store,
+			       double *improved_mean)
 {
 	/*
 	 * Compute the marginals for the linear combinations using just the Gaussians. The computations gets a bit messy since we will try to avoid dependency of n,
@@ -5416,7 +5457,7 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 
 	GMRFLib_problem_tp *problem = ai_store->problem;
 	int *remap = problem->sub_sm_fact.remap;
-	int i, n, nc = 0, one = 1, use_new_version = 1;
+	int i, j, k, n, nc = 0, one = 1, use_new_version = 1;
 	GMRFLib_density_tp **d;
 
 	assert(problem != NULL);
@@ -5428,41 +5469,30 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 
 	nc = (problem->sub_constr ? problem->sub_constr->nc : 0);
 
-	/*
-	 * do each lincomb at the time. No need to run this in parallel as its already in parallel... 
-	 */
-	if (0) {
-		if (use_new_version) {
-			FIXME1("compute_lincomb: USE NEW VERSION");
-		} else {
-			FIXME1("compute_lincomb: USE OLD VERSION");
-		}
-	}
-
 	if (use_new_version && (problem->sub_sm_fact.smtp == GMRFLib_SMTP_TAUCS)) {
 
 #pragma omp parallel for private(i)
 		for (i = 0; i < nlin; i++) {
 
-			int j, k, from_idx, to_idx, len, from_idx_a, to_idx_a, len_a;
+			int from_idx, to_idx, len, from_idx_a, to_idx_a, len_a;
 			double var, mean, imean, *a = NULL, *b = NULL, *v = NULL, var_corr, weight;
 
 			if (Alin[i]->first_nonzero < 0) {
-//#pragma omp critical
-				{
-					if (Alin[i]->first_nonzero < 0) {
-						Alin[i]->first_nonzero = GMRFLib_imin_value(Alin[i]->idx, Alin[i]->n);
+				Alin[i]->first_nonzero = GMRFLib_imin_value(Alin[i]->idx, Alin[i]->n);
+
+				/*
+				 * Just check this here, as its so much more convenient if this is true, below. If its not, make sure it is true then! 
+				 */
+				int jj;
+				if (Alin[i]->n > 1) {
+					for (jj = 0; jj < Alin[i]->n - 1; jj++) {
+						assert(Alin[i]->idx[jj] < Alin[i]->idx[jj + 1]);
 					}
 				}
 			}
 
 			if (Alin[i]->last_nonzero < 0) {
-//#pragma omp critical
-				{
-					if (Alin[i]->last_nonzero < 0) {
-						Alin[i]->last_nonzero = GMRFLib_imax_value(Alin[i]->idx, Alin[i]->n);
-					}
-				}
+				Alin[i]->last_nonzero = GMRFLib_imax_value(Alin[i]->idx, Alin[i]->n);
 			}
 
 			from_idx_a = Alin[i]->first_nonzero;
@@ -5480,19 +5510,14 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 			 * compute the first non-zero index (mapped) if not already there
 			 */
 			if (Alin[i]->first_nonzero_mapped < 0) {
-//#pragma omp critical
-				{
-					if (Alin[i]->first_nonzero_mapped) {
-						int findx = n;
+				int findx = n;
 
-						for (j = 0; j < Alin[i]->n; j++) {
-							k = remap[Alin[i]->idx[j]];
-							findx = IMIN(findx, k);
-						}
-						Alin[i]->first_nonzero_mapped = findx;
-						Alin[i]->last_nonzero_mapped = -1;
-					}
+				for (j = 0; j < Alin[i]->n; j++) {
+					k = remap[Alin[i]->idx[j]];
+					findx = IMIN(findx, k);
 				}
+				Alin[i]->first_nonzero_mapped = findx;
+				Alin[i]->last_nonzero_mapped = -1;
 			}
 
 			from_idx = Alin[i]->first_nonzero_mapped;
@@ -5529,12 +5554,7 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 			 * compute the last non-zero index (mapped) if not already there
 			 */
 			if (Alin[i]->last_nonzero_mapped < 0) {
-//#pragma omp critical
-				{
-					if (Alin[i]->last_nonzero_mapped < 0) {
-						Alin[i]->last_nonzero_mapped = GMRFLib_find_nonzero(v, len, -1) + from_idx;
-					}
-				}
+				Alin[i]->last_nonzero_mapped = GMRFLib_find_nonzero(v, len, -1) + from_idx;
 			}
 
 			/*
@@ -5543,8 +5563,14 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 			 */
 			var = ddot_(&len, v, &one, v, &one);
 
+			if (cross) {
+				Alin[i]->from_idx = from_idx;
+				Alin[i]->to_idx = to_idx;
+				Alin[i]->v = v;
+			} else {
+				Free(v);
+			}
 			Free(b);
-			Free(v);
 
 			/*
 			 * the correction matrix due to linear constraints 
@@ -5585,10 +5611,101 @@ int GMRFLib_ai_compute_lincomb(GMRFLib_density_tp *** lindens, double **cov, int
 
 			Free(a);
 		}
+
+
+		if (cross) {
+			/*
+			 * do calculations for the E(xi*x_j) 
+			 */
+
+			*cross = Calloc(ISQR(nlin), double);
+
+			/*
+			 * need this table for OPENMP 
+			 */
+			int klen = (ISQR(nlin) + nlin) / 2;
+			GMRFLib_lc_ij_tp *arr = Calloc(klen, GMRFLib_lc_ij_tp);
+			for (k = 0, i = 0; i < nlin; i++) {
+				for (j = i; j < nlin; j++) {
+					arr[k].i = i;
+					arr[k].j = j;
+					k++;
+				}
+			}
+			assert(k == klen);
+
+#pragma omp parallel for private(k, i, j)
+			for (k = 0; k < klen; k++) {
+				i = arr[k].i;
+				j = arr[k].j;
+
+				int ij_from, ij_to;
+
+				ij_from = IMAX(Alin[i]->from_idx, Alin[j]->from_idx);
+				ij_to = IMIN(Alin[i]->to_idx, Alin[j]->to_idx);
+
+				if (ij_from <= ij_to) {
+					double *v_i, *v_j;
+					int ij_len;
+
+					v_i = &(Alin[i]->v[IMAX(0, ij_from - Alin[i]->from_idx)]);
+					v_j = &(Alin[j]->v[IMAX(0, ij_from - Alin[j]->from_idx)]);
+					ij_len = ij_to - ij_from + 1;
+
+					(*cross)[i + j * nlin] = (*cross)[j + i * nlin] = ddot_(&ij_len, v_i, &one, v_j, &one);
+				} else {
+					(*cross)[i + j * nlin] = (*cross)[j + i * nlin] = 0.0;
+				}
+
+				if (nc) {
+					/*
+					 * the correction matrix due to linear constraints 
+					 */
+					double correction = 0.0;
+					int kk;
+
+					for (kk = 0; kk < nc; kk++) {
+						/*
+						 * w = AA^T CONSTR_M 
+						 */
+						double *p, *pp, w, ww, weight;
+						int jj, idx;
+
+						w = ww = 0.0;
+						p = &(problem->constr_m[kk * n]);
+						pp = &(problem->qi_at_m[kk * n]);
+
+						for (jj = 0; jj < Alin[i]->n; jj++) {
+							idx = Alin[i]->idx[jj];
+							weight = (double) Alin[i]->weight[jj];
+							w += weight * p[idx];
+						}
+						for (jj = 0; jj < Alin[j]->n; jj++) {
+							idx = Alin[j]->idx[jj];
+							weight = (double) Alin[j]->weight[jj];
+							ww += weight * pp[idx];
+						}
+						correction += w * ww;
+					}
+
+					(*cross)[i + j * nlin] = (*cross)[i + j * nlin] - correction;
+					(*cross)[j + i * nlin] = (*cross)[i + j * nlin];
+				}
+			}
+
+			Free(arr);
+			for (i = 0; i < nlin; i++) {
+				Free(Alin[i]->v);
+			}
+		}
 	} else {
 		/*
 		 * slow version, can rewrite this for smtp=BAND as well, if required. 
 		 */
+
+		if (cross) {
+			FIXME("CROSS IS NOT SUPPORTED FOR THE SLOW/OLD VERSION.");
+		}
 #pragma omp parallel for private(i)
 		for (i = 0; i < nlin; i++) {
 
