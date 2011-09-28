@@ -726,6 +726,38 @@ double map_dof(double arg, map_arg_tp typ, void *param)
 	abort();
 	return 0.0;
 }
+double map_dof5(double arg, map_arg_tp typ, void *param)
+{
+	/*
+	 * the map-function for the degrees of freedom for the student-t 
+	 */
+	switch (typ) {
+	case MAP_FORWARD:
+		/*
+		 * extern = func(local) 
+		 */
+		return 5.0 + exp(arg);
+	case MAP_BACKWARD:
+		/*
+		 * local = func(extern) 
+		 */
+		return log(arg - 5.0);
+	case MAP_DFORWARD:
+		/*
+		 * d_extern / d_local 
+		 */
+		return exp(arg);
+	case MAP_INCREASING:
+		/*
+		 * return 1.0 if montone increasing and 0.0 otherwise 
+		 */
+		return 1.0;
+	default:
+		abort();
+	}
+	abort();
+	return 0.0;
+}
 double map_phi(double arg, map_arg_tp typ, void *param)
 {
 	/*
@@ -7163,7 +7195,7 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 
 			mb->theta[mb->ntheta] = ds->data_observations.dof_intern_tstrata;
 			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
-			mb->theta_map[mb->ntheta] = map_dof;
+			mb->theta_map[mb->ntheta] = map_dof5;
 			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
 			mb->theta_map_arg[mb->ntheta] = NULL;
 			mb->ntheta++;
@@ -10767,7 +10799,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		 */
 		mb->f_rankdef[mb->nf] = rd;
 		if (mb->verbose) {
-			printf("\t\trank-deficiency is *defined* [%1d]\n", rd);
+			printf("\t\trank-deficiency is *defined* [%g]\n", rd);
 		}
 	} else {
 		/*
@@ -14131,6 +14163,7 @@ int inla_parse_output(inla_tp * mb, dictionary * ini, int sec, Output_tp ** out)
 	(*out)->kld = iniparser_getboolean(ini, inla_string_join(secname, "KLD"), (*out)->kld);
 	(*out)->mlik = iniparser_getboolean(ini, inla_string_join(secname, "MLIK"), (*out)->mlik);
 	(*out)->q = iniparser_getboolean(ini, inla_string_join(secname, "Q"), (*out)->q);
+	(*out)->graph = iniparser_getboolean(ini, inla_string_join(secname, "GRAPH"), (*out)->graph);
 	tmp = GMRFLib_strdup(iniparser_getstring(ini, inla_string_join(secname, "QUANTILES"), NULL));
 
 	if (G.mode == INLA_MODE_HYPER) {
@@ -14175,6 +14208,7 @@ int inla_parse_output(inla_tp * mb, dictionary * ini, int sec, Output_tp ** out)
 			printf("\t\t\tkld=[%1d]\n", (*out)->kld);
 			printf("\t\t\tmlik=[%1d]\n", (*out)->mlik);
 			printf("\t\t\tq=[%1d]\n", (*out)->q);
+			printf("\t\t\tgraph=[%1d]\n", (*out)->graph);
 			printf("\t\t\thyperparameters=[%1d]\n", (*out)->hyperparameters);
 		}
 		printf("\t\t\tsummary=[%1d]\n", (*out)->summary);
@@ -14239,6 +14273,34 @@ int inla_output_Q(inla_tp * mb, const char *dir, GMRFLib_graph_tp * graph)
 		Free(fnm);
 	}
 	Free(newdir);
+
+	return INLA_OK;
+}
+int inla_output_graph(inla_tp * mb, const char *dir, GMRFLib_graph_tp * graph)
+{
+	int i, j, jj;
+	char *fnm = NULL;
+	FILE *fp = NULL;
+
+	GMRFLib_sprintf(&fnm, "%s/graph.dat", dir);
+	if (mb->verbose) {
+		printf("\t\tstore graph in[%s]\n", fnm);
+	}
+
+	fp = fopen(fnm, "w+");
+	assert(fp);
+
+	fprintf(fp, "%1d\n", graph->n);
+	for(i=0; i<graph->n; i++){
+		fprintf(fp, "%1d ", i);
+		fprintf(fp, "%1d ", graph->nnbs[i]);
+		for(jj = 0; jj < graph->nnbs[i]; jj++){
+			j = graph->nbs[i][jj];
+			fprintf(fp, "%1d ", j);
+		}
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
 
 	return INLA_OK;
 }
@@ -14613,6 +14675,7 @@ int inla_output(inla_tp * mb)
 				inla_output_Q(mb, mb->dir, mb->hgmrfm->graph);
 				mb->verbose = save;
 			}
+			inla_output_graph(mb, mb->dir, mb->hgmrfm->graph);
 		}
 	}
 	int N = ((GMRFLib_hgmrfm_arg_tp *) mb->hgmrfm->Qfunc_arg)->N;
