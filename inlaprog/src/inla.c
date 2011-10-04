@@ -2719,7 +2719,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 		}
 	}
 
-	int i, strata;
+	int i, dcode, strata;
 	Data_section_tp *ds = (Data_section_tp *) arg;
 	double y, prec, w, dof, y_std, fac, lg1, lg2, ypred;
 
@@ -2744,14 +2744,14 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 	default:
 		assert(0 == 1);
 	}
-	
+
 
 	lg1 = gsl_sf_lngamma(dof / 2.0);
 	lg2 = gsl_sf_lngamma((dof + 1.0) / 2.0);
 
-	int use_tail_correction; 
+	int use_tail_correction;
 
-	switch(bit_tail) {
+	switch (bit_tail) {
 	case 0:
 		use_tail_correction = GMRFLib_FALSE;
 		break;
@@ -2796,13 +2796,15 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 
 		if (m > 0) {
 			/*
-			 * assume this... 
+			 * assume this for the moment, otherwise we have to add new code...
 			 */
 			assert(ds->predictor_invlinkfunc == link_identity);
 
 			for (i = 0; i < m; i++) {
 				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
 				y_std = (y - ypred) * fac;
+				dcode = (m <= 3 ? i : 0);      /* if m > 3 we should not compute deriviaties... */
+
 				if (ABS(y_std) > tail_start && use_tail_correction) {
 					if (y_std > tail_start) {
 						dev = y_std - tail_start;
@@ -2811,7 +2813,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 						diff *= -1.0;  /* swap sign */
 					}
 
-					switch (i) {
+					switch (dcode) {
 					case 0:
 						logll[i] = lg2 - lg1 - 0.5 * log(M_PI * dof) - (dof + 1.0) / 2.0 * log(1.0 + SQR(tail_start) / dof) + log(fac);
 						logll[i] += -0.5 * tail_prec * SQR(dev) + diff * dev;
@@ -2831,7 +2833,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 						assert(0 == 1);
 					}
 				} else {
-					switch (i) {
+					switch (dcode) {
 					case 0:
 						logll[i] = lg2 - lg1 - 0.5 * log(M_PI * dof) - (dof + 1.0) / 2.0 * log(1.0 + SQR(y_std) / dof) + log(fac);
 						logll[i] -= log_normc;
@@ -3489,7 +3491,27 @@ int loglikelihood_binomial(double *logll, double *x, int m, int idx, double *x_v
 				logll[i] = res.val - SQR(DMIN(10.0, n)) * SQR(x[i] + OFFSET(idx) - (-5.0));
 				// printf("idx x logl %d %g %g\n", idx, x[i], logll[i]);
 			} else {
-				logll[i] = res.val + y * log(p) + (n - y) * log(1.0 - p);
+				if (ISEQUAL(p, 1.0)) {
+					/*
+					 * this is ok if we get a 0*log(0) expression for the reminder 
+					 */
+					if (n == (int) y) {
+						logll[i] = res.val + y * log(p);
+					} else {
+						logll[i] = -DBL_MAX;
+					}
+				} else if (ISZERO(p)) {
+					/*
+					 * this is ok if we get a 0*log(0) expression for the reminder 
+					 */
+					if ((int) y == 0) {
+						logll[i] = res.val + (n - y) * log(1.0 - p);
+					} else {
+						logll[i] = -DBL_MAX;
+					}
+				} else {
+					logll[i] = res.val + y * log(p) + (n - y) * log(1.0 - p);
+				}
 			}
 		}
 	} else {
@@ -5329,35 +5351,6 @@ int inla_tolower(char *string)
 	}
 	return GMRFLib_SUCCESS;
 }
-GMRFLib_lc_tp *inla_vector_to_lc(int len, double *w)
-{
-	int i, k, n;
-	GMRFLib_lc_tp *lc;
-
-	for (i = n = 0; i < len; i++)
-		n += (w[i] != 0.0);
-
-	if (n == 0)
-		return NULL;
-
-	lc = Calloc(1, GMRFLib_lc_tp);
-	lc->n = n;
-	lc->first_nonzero_mapped = -1;
-	lc->last_nonzero_mapped = -1;
-	lc->idx = Calloc(n, int);
-	lc->weight = Calloc(n, float);
-
-	for (i = k = 0; i < len; i++) {
-		if (w[i] != 0.0) {
-			lc->idx[k] = i;
-			lc->weight[k] = (float) w[i];
-			k++;
-		}
-	}
-	assert(k == n);
-
-	return lc;
-}
 int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 {
 	/*
@@ -5412,12 +5405,15 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 
 	lc = Calloc(1, GMRFLib_lc_tp);
 	lc->n = 0;
-	lc->first_nonzero = -1;				       /* added below */
-	lc->last_nonzero = -1;				       /* added below */
-	lc->first_nonzero_mapped = -1;
-	lc->last_nonzero_mapped = -1;
 	lc->idx = NULL;
 	lc->weight = NULL;
+	lc->tinfo = Calloc(GMRFLib_MAX_THREADS, GMRFLib_lc_tinfo_tp);
+	for (i = 0; i < GMRFLib_MAX_THREADS; i++) {
+		lc->tinfo[i].first_nonzero = -1;
+		lc->tinfo[i].last_nonzero = -1;
+		lc->tinfo[i].first_nonzero_mapped = -1;
+		lc->tinfo[i].last_nonzero_mapped = -1;
+	}
 
 	for (sec_no = 0; sec_no < num_sections; sec_no++) {
 
@@ -5485,8 +5481,10 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 	/*
 	 * add these as well 
 	 */
-	lc->first_nonzero = lc->idx[0];
-	lc->last_nonzero = lc->idx[lc->n - 1];
+	for (i = 0; i < GMRFLib_MAX_THREADS; i++) {
+		lc->tinfo[i].first_nonzero = lc->idx[0];
+		lc->tinfo[i].last_nonzero = lc->idx[lc->n - 1];
+	}
 
 	if (mb->verbose) {
 		printf("\t\tNumber of non-zero weights [%1d]\n", lc->n);
@@ -6219,14 +6217,14 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 
 
 
-	/* 
-	   common for all
+	/*
+	 * common for all 
 	 */
 	ds->variant = (GMRFLib_uchar) iniparser_getint(ini, inla_string_join(secname, "VARIANT"), 0);
 	if (mb->verbose) {
 		printf("\t\tuse variant [%1u]\n", (unsigned int) ds->variant);
 		unsigned int jj;
-		for(jj=0; jj < 4; jj++){
+		for (jj = 0; jj < 4; jj++) {
 			printf("\t\t\tbit %u is %s\n", jj, (GMRFLib_getbit((GMRFLib_uchar) ds->variant, jj) ? "on" : "off"));
 		}
 	}
@@ -14293,10 +14291,10 @@ int inla_output_graph(inla_tp * mb, const char *dir, GMRFLib_graph_tp * graph)
 	assert(fp);
 
 	fprintf(fp, "%1d\n", graph->n);
-	for(i=0; i<graph->n; i++){
+	for (i = 0; i < graph->n; i++) {
 		fprintf(fp, "%1d\n", i);
 		fprintf(fp, "%1d\n", graph->nnbs[i]);
-		for(jj = 0; jj < graph->nnbs[i]; jj++){
+		for (jj = 0; jj < graph->nnbs[i]; jj++) {
 			j = graph->nbs[i][jj];
 			fprintf(fp, "%1d\n", j);
 		}
@@ -14676,7 +14674,7 @@ int inla_output(inla_tp * mb)
 				inla_output_Q(mb, mb->dir, mb->hgmrfm->graph);
 				mb->verbose = save;
 			}
-			if (mb->output->graph){
+			if (mb->output->graph) {
 				inla_output_graph(mb, mb->dir, mb->hgmrfm->graph);
 			}
 		}
@@ -15063,6 +15061,16 @@ int inla_output_misc(const char *dir, GMRFLib_ai_misc_output_tp * mo, int ntheta
 			fprintf(fp, " %d %d\n", i, mo->reordering[i]);
 		}
 	}
+	fclose(fp);
+	Free(nndir);
+
+	GMRFLib_sprintf(&nndir, "%s/%s", ndir, "mode-status.dat");
+	inla_fnmfix(nndir);
+	fp = fopen(nndir, "w");
+	if (!fp) {
+		inla_error_open_file(nndir);
+	}
+	fprintf(fp, "%1d\n", mo->mode_status);
 	fclose(fp);
 	Free(nndir);
 
@@ -16344,7 +16352,7 @@ inla_file_contents_tp *inla_read_file_contents(const char *filename)
 
 	FILE *fp;
 	long len;
-	
+
 	fp = fopen(filename, "rb");
 	if (!fp) {
 		return NULL;

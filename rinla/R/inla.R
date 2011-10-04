@@ -395,6 +395,7 @@
     ## expand the data-frame and call inla() again.
     ##
     have.surv = FALSE
+    cont.hazard = NULL
     for(i in 1:n.family)
         have.surv = have.surv || inla.model.properties(family[i], "likelihood")$survival
 
@@ -1557,6 +1558,7 @@
     ## define some environment variables for remote computing
     inla.eval(paste("Sys.setenv(", "\"INLA_PATH\"", "=\"", system.file("bin", package="INLA"), "\"", ")", sep=""))
     inla.eval(paste("Sys.setenv(", "\"INLA_OS\"", "=\"", inla.os.type() , "\"", ")", sep=""))
+    inla.eval(paste("Sys.setenv(", "\"INLA_HGVERSION\"", "=\"", inla.version(hgid=TRUE) , "\"", ")", sep=""))
     if (remote && inla.os("windows")) {
         inla.eval(paste("Sys.setenv(", "\"INLA_SSH_AUTH_SOCK\"", "=\"", inla.getOption("ssh.auth.sock"), "\"", ")", sep=""))
         inla.eval(paste("Sys.setenv(", "\"INLA_CYGWIN_HOME\"", "=\"", inla.getOption("cygwin.home"), "\"", ")", sep=""))
@@ -1662,8 +1664,7 @@
             ret$control.fixed = cont.fixed
             ret$control.mode = cont.mode
             ret$control.expert = cont.expert
-            if (exists("cont.hazard"))
-                ret$control.hazard = cont.hazard
+            ret$control.hazard = cont.hazard
             ret$control.lincomb = cont.lincomb
 
             ret$call=call
