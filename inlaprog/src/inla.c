@@ -107,6 +107,8 @@ G_tp G = { 0, 1, INLA_MODE_DEFAULT, 4.0, 0.5, 2, 0, -1, 0, 0 };
 #define OFFSET2(idx_) mb_old->offset[idx_]
 #define OFFSET3(idx_) mb->offset[idx_]
 
+#define PREDICTOR_INVERSE_LINK(xx_)  ds->predictor_invlinkfunc(xx_, MAP_FORWARD, NULL)
+
 #define PENALTY -100.0					       /* wishart3d: going over limit... */
 
 
@@ -2066,6 +2068,9 @@ int inla_read_data_likelihood(inla_tp * mb, dictionary * ini, int sec)
 	} else if (ds->data_id == L_BINOMIAL) {
 		idiv = 3;
 		a[0] = ds->data_observations.nb = Calloc(mb->predictor_ndata, double);
+	} else if (ds->data_id == L_CBINOMIAL) {
+		idiv = 3;
+		a[0] = ds->data_observations.nb = Calloc(mb->predictor_ndata, double);
 	} else if (ds->data_id == L_ZEROINFLATEDBINOMIAL0) {
 		idiv = 3;
 		a[0] = ds->data_observations.nb = Calloc(mb->predictor_ndata, double);
@@ -2342,7 +2347,7 @@ int loglikelihood_laplace(double *logll, double *x, int m, int idx, double *x_ve
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			u = y - ypred;
 			if (u > 0) {
 				a = alpha;
@@ -2374,12 +2379,12 @@ int loglikelihood_gaussian(double *logll, double *x, int m, int idx, double *x_v
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = -0.9189385332046726 + 0.5 * (lprec - (SQR(ypred - y) * prec));
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = inla_Phi((y - ypred) * sqrt(prec));
 		}
 	}
@@ -2405,7 +2410,7 @@ int loglikelihood_iid_gamma(double *logll, double *x, int m, int idx, double *x_
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			xx = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			xx = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			if (xx > FLT_EPSILON) {
 				logll[i] = cons + (shape - 1.0) * log(xx) - rate * xx;
 			} else {
@@ -2449,7 +2454,7 @@ int loglikelihood_sas(double *logll, double *x, int m, int idx, double *x_vec, v
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			xx = (y - ypred) * sqrt(prec);
 			s = S(xx);
 			s2 = SQR(s);
@@ -2457,7 +2462,7 @@ int loglikelihood_sas(double *logll, double *x, int m, int idx, double *x_vec, v
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			s = S((y - ypred) * sqrt(prec));
 			logll[i] = inla_Phi(s);
 		}
@@ -2530,12 +2535,12 @@ int loglikelihood_logistic(double *logll, double *x, int m, int idx, double *x_v
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = lprecA - precA * (y - eta) - 2.0 * log(1.0 + exp(-precA * (y - eta)));
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = 1.0 / (1.0 + exp(-precA * (y - eta)));
 		}
 	}
@@ -2562,7 +2567,7 @@ int loglikelihood_skew_normal(double *logll, double *x, int m, int idx, double *
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			xarg = (y - ypred) * sprec;
 			logll[i] = M_LOG2E - 0.9189385332046726 + 0.5 * (lprec - SQR(xarg)) + inla_log_Phi(shape * xarg);
 		}
@@ -2594,13 +2599,13 @@ int loglikelihood_gev(double *logll, double *x, int m, int idx, double *x_vec, v
 	if (m > 0) {
 		if (ISZERO(xi)) {
 			for (i = 0; i < m; i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				xx = sprec * (y - ypred);
 				logll[i] = -xx - exp(-xx) + log(sprec);
 			}
 		} else {
 			for (i = 0; i < m; i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				xx = 1.0 + xi * sprec * (y - ypred);
 				if (xx > DBL_EPSILON) {
 					logll[i] = (-1.0 / xi - 1.0) * log(xx) - pow(xx, -1.0 / xi) + log(sprec);
@@ -2613,13 +2618,13 @@ int loglikelihood_gev(double *logll, double *x, int m, int idx, double *x_vec, v
 	} else {
 		if (ISZERO(xi)) {
 			for (i = 0; i < -m; i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				xx = sprec * (y - ypred);
 				logll[i] = exp(-exp(-xx));
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				xx = sprec * (y - ypred);
 				if (xi > 0.0) {
 					if (1.0 + xi * xx > 0.0) {
@@ -2661,13 +2666,13 @@ int loglikelihood_t(double *logll, double *x, int m, int idx, double *x_vec, voi
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			y_std = (y - ypred) * fac;
 			logll[i] = lg2 - lg1 - 0.5 * log(M_PI * dof) - (dof + 1.0) / 2.0 * log(1.0 + SQR(y_std) / dof) + log(fac);
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = gsl_cdf_tdist_P((y - ypred) * fac, dof);
 		}
 	}
@@ -2801,7 +2806,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 			assert(ds->predictor_invlinkfunc == link_identity);
 
 			for (i = 0; i < m; i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				y_std = (y - ypred) * fac;
 				dcode = (m <= 3 ? i : 0);      /* if m > 3 we should not compute deriviaties... */
 
@@ -2852,7 +2857,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 			}
 		} else {
 			for (i = 0; i < (-m); i++) {
-				ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				y_std = (y - ypred) * fac;
 				if (ABS(y_std) > tail_start && use_tail_correction) {
 					if (y_std > tail_start) {
@@ -2872,7 +2877,7 @@ int loglikelihood_tstrata(double *logll, double *x, int m, int idx, double *x_ve
 	} else {
 		FIXME1("PIT-VALUES ARE NOT YET CORRECT AND ASSUME T.");
 		for (i = 0; i < -m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = gsl_cdf_tdist_P((y - ypred) * fac, dof);
 		}
 	}
@@ -2895,12 +2900,12 @@ int loglikelihood_poisson(double *logll, double *x, int m, int idx, double *x_ve
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = y * (log(lambda) + logE(E)) - E * lambda - normc;
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			if (ISZERO(E * lambda)) {
 				if (ISZERO(y)) {
 					logll[i] = 1.0;
@@ -2949,13 +2954,13 @@ int loglikelihood_zeroinflated_poisson0(double *logll, double *x, int m, int idx
 		 */
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logll[i] = log(1.0 - p) + y * log(mu) - mu - normc - log(1.0 - exp(-mu));
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logll[i] = p + (1.0 - p) * (gsl_cdf_poisson_P((unsigned int) y, mu) - gsl_cdf_poisson_P((unsigned int) 0, mu));
 			}
@@ -2980,7 +2985,7 @@ int loglikelihood_zeroinflated_poisson1(double *logll, double *x, int m, int idx
 	if ((int) y == 0) {
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logA = log(p);
 				logB = log(1.0 - p) + y * log(mu) - mu - normc;
@@ -2989,7 +2994,7 @@ int loglikelihood_zeroinflated_poisson1(double *logll, double *x, int m, int idx
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logll[i] = p + (1.0 - p) * gsl_cdf_poisson_P((unsigned int) y, mu);
 			}
@@ -2997,13 +3002,13 @@ int loglikelihood_zeroinflated_poisson1(double *logll, double *x, int m, int idx
 	} else {
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logll[i] = log(1.0 - p) + y * log(mu) - mu - normc;
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				logll[i] = p + (1.0 - p) * gsl_cdf_poisson_P((unsigned int) y, mu);
 			}
@@ -3039,7 +3044,7 @@ int loglikelihood_zeroinflated_poisson2(double *logll, double *x, int m, int idx
 					// P(x[i]+OFFSET(idx));
 					logll[i] = 0.0;
 				} else {
-					lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+					lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 					mu = E * lambda;
 					log_mu = log(mu);
 
@@ -3068,7 +3073,7 @@ int loglikelihood_zeroinflated_poisson2(double *logll, double *x, int m, int idx
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				p = PROB(x[i] + OFFSET(idx), E);
 				logll[i] = p + (1.0 - p) * gsl_cdf_poisson_P((unsigned int) y, mu);
@@ -3081,7 +3086,7 @@ int loglikelihood_zeroinflated_poisson2(double *logll, double *x, int m, int idx
 				if (gsl_isnan(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
-					lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+					lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 					mu = E * lambda;
 					log_mu = log(mu);
 					logll[i] = log(1.0 - p) + y * log_mu - mu - normc;
@@ -3089,7 +3094,7 @@ int loglikelihood_zeroinflated_poisson2(double *logll, double *x, int m, int idx
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				p = PROB(x[i] + OFFSET(idx), E);
 				logll[i] = p + (1.0 - p) * gsl_cdf_poisson_P((unsigned int) y, mu);
@@ -3143,7 +3148,7 @@ int loglikelihood_logperiodogram(double *logll, double *x, int m, int idx, doubl
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			ypred = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			v = y - ypred + M_LOG2E;
 			logll[i] = -M_LOG2E + v - 0.5 * exp_taylor(v, x0, order);
 		}
@@ -3171,7 +3176,7 @@ int loglikelihood_negative_binomial(double *logll, double *x, int m, int idx, do
 	if (m > 0) {
 		lnorm = gsl_sf_lngamma(y + size) - gsl_sf_lngamma(size) - gsl_sf_lngamma(y + 1.0);	/* near always the case we'll need this one */
 		for (i = 0; i < m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			mu = E * lambda;
 			if (mu / size > cutoff) {
 				/*
@@ -3189,7 +3194,7 @@ int loglikelihood_negative_binomial(double *logll, double *x, int m, int idx, do
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			mu = E * lambda;
 			if (mu / size > cutoff) {
 				/*
@@ -3239,7 +3244,7 @@ int loglikelihood_zeroinflated_negative_binomial0(double *logll, double *x, int 
 			lnorm = gsl_sf_lngamma(y + size) - gsl_sf_lngamma(size) - gsl_sf_lngamma(y + 1.0);
 
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				if (mu / size > cutoff) {
 					/*
@@ -3262,7 +3267,7 @@ int loglikelihood_zeroinflated_negative_binomial0(double *logll, double *x, int 
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			mu = E * lambda;
 			if (mu / size > cutoff) {
 				/*
@@ -3310,7 +3315,7 @@ int loglikelihood_zeroinflated_negative_binomial1(double *logll, double *x, int 
 
 		if ((int) y == 0) {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				if (mu / size > cutoff) {
 					/*
@@ -3327,7 +3332,7 @@ int loglikelihood_zeroinflated_negative_binomial1(double *logll, double *x, int 
 			}
 		} else {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				if (mu / size > cutoff) {
 					/*
@@ -3345,7 +3350,7 @@ int loglikelihood_zeroinflated_negative_binomial1(double *logll, double *x, int 
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			mu = E * lambda;
 			if (mu / size > cutoff) {
 				/*
@@ -3393,7 +3398,7 @@ int loglikelihood_zeroinflated_negative_binomial2(double *logll, double *x, int 
 
 		if ((int) y == 0) {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				p_zeroinflated = 1.0 - pow(mu / (1.0 + mu), alpha);
 
@@ -3416,7 +3421,7 @@ int loglikelihood_zeroinflated_negative_binomial2(double *logll, double *x, int 
 			}
 		} else {
 			for (i = 0; i < m; i++) {
-				lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				mu = E * lambda;
 				p_zeroinflated = 1.0 - pow(mu / (1.0 + mu), alpha);
 				if (gsl_isnan(p_zeroinflated)) {
@@ -3439,7 +3444,7 @@ int loglikelihood_zeroinflated_negative_binomial2(double *logll, double *x, int 
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			lambda = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			lambda = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			mu = E * lambda;
 			p_zeroinflated = 1.0 - pow(mu / (1.0 + mu), alpha);
 			if (mu / size > cutoff) {
@@ -3483,7 +3488,7 @@ int loglikelihood_binomial(double *logll, double *x, int m, int idx, double *x_v
 		status = gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y, &res);
 		assert(status == GSL_SUCCESS);
 		for (i = 0; i < m; i++) {
-			p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			if (p > 1.0) {
 				/*
 				 * need this for the link = "log" that was requested...
@@ -3516,9 +3521,71 @@ int loglikelihood_binomial(double *logll, double *x, int m, int idx, double *x_v
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			p = ds->predictor_invlinkfunc((x[i] + OFFSET(idx)), MAP_FORWARD, NULL);
+			p = PREDICTOR_INVERSE_LINK((x[i] + OFFSET(idx)));
 			p = DMIN(1.0, p);
 			logll[i] = gsl_cdf_binomial_P((unsigned int) y, p, (unsigned int) n);
+		}
+	}
+
+	return GMRFLib_SUCCESS;
+}
+int loglikelihood_cbinomial(double *logll, double *x, int m, int idx, double *x_vec, void *arg)
+{
+	/*
+	 * y ~ Binomial(n, p), then z ~ CBinomial(p) where z = 0 if y=0, and z=1 if y > 0. This gives p(z=0) = (1-p)^n, and p(z=1) = 1-(1-p)^n.
+	 * So z ~ Binomial(1, 1-(1-p)^n)
+	 */
+	int i;
+
+	if (m == 0) {
+		return GMRFLib_LOGL_COMPUTE_CDF;
+	}
+	int status;
+	Data_section_tp *ds = (Data_section_tp *) arg;
+	double y = ds->data_observations.y[idx], n = ds->data_observations.nb[idx], p, z, nz = 1.0;
+
+	z = ((int) y == 0 ? 0.0 : 1.0);
+	
+	if (m > 0) {
+		gsl_sf_result res;
+		status = gsl_sf_lnchoose_e((unsigned int) nz, (unsigned int) z, &res);
+		assert(status == GSL_SUCCESS);
+		for (i = 0; i < m; i++) {
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			if (p > 1.0) {
+				/*
+				 * need this for the link = "log" that was requested...
+				 */
+				logll[i] = res.val - SQR(DMIN(10.0, nz)) * SQR(x[i] + OFFSET(idx) - (-5.0));
+			} else {
+				if (ISEQUAL(p, 1.0)) {
+					/*
+					 * this is ok if we get a 0*log(0) expression for the reminder 
+					 */
+					if (1 == (int) z) {
+						logll[i] = res.val + z * log(1.0 - pow(1.0-p, n));
+					} else {
+						logll[i] = -DBL_MAX;
+					}
+				} else if (ISZERO(p)) {
+					/*
+					 * this is ok if we get a 0*log(0) expression for the reminder 
+					 */
+					if ((int) z == 0) {
+						logll[i] = res.val + (nz - z) * n*log(1.0 - p);
+					} else {
+						logll[i] = -DBL_MAX;
+					}
+				} else {
+					logll[i] = res.val + z * log(1.0 - pow(1.0-p, n)) + (nz - z) * n * log(1.0-p);
+				}
+			}
+		}
+	} else {
+		for (i = 0; i < -m; i++) {
+			p = PREDICTOR_INVERSE_LINK((x[i] + OFFSET(idx)));
+			p = DMIN(1.0, p);
+			logll[i] = gsl_cdf_binomial_P((unsigned int) z, 1.0 - pow(1.0 - p, n), (unsigned int) nz);
 		}
 	}
 
@@ -3556,12 +3623,12 @@ int loglikelihood_zeroinflated_binomial0(double *logll, double *x, int m, int id
 		gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y, &res);
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - p) + res.val + y * log(prob) + (n - y) * log(1.0 - prob) - log(1.0 - pow(1.0 - prob, n));
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = p + (1.0 - p) * (gsl_cdf_binomial_P((unsigned int) y, prob, (unsigned int) n) -
 							    gsl_cdf_binomial_P((unsigned int) 0, prob, (unsigned int) n));
 			}
@@ -3589,7 +3656,7 @@ int loglikelihood_zeroinflated_binomial1(double *logll, double *x, int m, int id
 	if ((int) y == 0) {
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logA = log(p);
 				logB = log(1.0 - p) + res.val + y * log(prob) + (n - y) * log(1.0 - prob);
 				// logll[i] = log(p + (1.0 - p) * gsl_ran_binomial_pdf((unsigned int) y, prob, (unsigned int) n));
@@ -3597,19 +3664,19 @@ int loglikelihood_zeroinflated_binomial1(double *logll, double *x, int m, int id
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = p + (1.0 - p) * gsl_cdf_binomial_P((unsigned int) y, prob, (unsigned int) n);
 			}
 		}
 	} else {
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - p) + res.val + y * log(prob) + (n - y) * log(1.0 - prob);
 			}
 		} else {
 			for (i = 0; i < -m; i++) {
-				prob = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				prob = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = p + (1.0 - p) * gsl_cdf_binomial_P((unsigned int) y, prob, (unsigned int) n);
 			}
 		}
@@ -3640,7 +3707,7 @@ int loglikelihood_zeroinflated_binomial2(double *logll, double *x, int m, int id
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
 				pzero = PROBZERO(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (gsl_isinf(pzero) || gsl_isinf(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3657,7 +3724,7 @@ int loglikelihood_zeroinflated_binomial2(double *logll, double *x, int m, int id
 		} else {
 			for (i = 0; i < -m; i++) {
 				pzero = PROBZERO(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (gsl_isinf(pzero) || gsl_isinf(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3669,7 +3736,7 @@ int loglikelihood_zeroinflated_binomial2(double *logll, double *x, int m, int id
 		if (m > 0) {
 			for (i = 0; i < m; i++) {
 				pzero = PROBZERO(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (gsl_isinf(pzero) || gsl_isinf(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3679,7 +3746,7 @@ int loglikelihood_zeroinflated_binomial2(double *logll, double *x, int m, int id
 		} else {
 			for (i = 0; i < -m; i++) {
 				pzero = PROBZERO(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (gsl_isinf(pzero) || gsl_isinf(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3733,7 +3800,7 @@ int loglikelihood_zero_n_inflated_binomial2(double *logll, double *x, int m, int
 			for (i = 0; i < m; i++) {
 				p1 = P1(x[i] + OFFSET(idx));
 				p2 = P2(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (ISINF(p1) || ISINF(p2) || ISINF(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3755,7 +3822,7 @@ int loglikelihood_zero_n_inflated_binomial2(double *logll, double *x, int m, int
 			for (i = 0; i < m; i++) {
 				p1 = P1(x[i] + OFFSET(idx));
 				p2 = P2(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (ISINF(p1) || ISINF(p2) || ISINF(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3777,7 +3844,7 @@ int loglikelihood_zero_n_inflated_binomial2(double *logll, double *x, int m, int
 			for (i = 0; i < m; i++) {
 				p1 = P1(x[i] + OFFSET(idx));
 				p2 = P2(x[i] + OFFSET(idx));
-				p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				if (ISINF(p1) || ISINF(p2) || ISINF(p)) {
 					logll[i] = -DBL_MAX;
 				} else {
@@ -3819,7 +3886,7 @@ int loglikelihood_zeroinflated_betabinomial2(double *logll, double *x, int m, in
 	if ((int) y == 0) {
 		for (i = 0; i < m; i++) {
 			pzero = PROBZERO(x[i] + OFFSET(idx));
-			p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			if (gsl_isinf(pzero) || gsl_isinf(p)) {
 				logll[i] = -DBL_MAX;
 			} else {
@@ -3837,7 +3904,7 @@ int loglikelihood_zeroinflated_betabinomial2(double *logll, double *x, int m, in
 	} else {
 		for (i = 0; i < m; i++) {
 			pzero = PROBZERO(x[i] + OFFSET(idx));
-			p = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			if (gsl_isinf(pzero) || gsl_isinf(p)) {
 				logll[i] = -DBL_MAX;
 			} else {
@@ -3879,25 +3946,25 @@ int loglikelihood_exp(double *logll, double *x, int m, int idx, double *x_vec, v
 		switch (ievent) {
 		case SURV_EVENT_FAILURE:
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(gama) - gama * (y - truncation);
 			}
 			break;
 		case SURV_EVENT_RIGHT:
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = -gama * (lower - truncation);
 			}
 			break;
 		case SURV_EVENT_LEFT:
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - exp(-gama * (upper - truncation)));
 			}
 			break;
 		case SURV_EVENT_INTERVAL:
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = -gama * (lower - truncation) + log(1.0 - exp(-gama * (upper - lower)));
 			}
 			break;
@@ -3937,21 +4004,21 @@ int loglikelihood_weibull(double *logll, double *x, int m, int idx, double *x_ve
 		case SURV_EVENT_FAILURE:
 			ypow = pow(y, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(gama) + log(alpha) + (alpha - 1.0) * log(y) - gama * (ypow - truncationpow);
 			}
 			break;
 		case SURV_EVENT_RIGHT:
 			lowerpow = pow(lower, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = -gama * (lowerpow - truncationpow);
 			}
 			break;
 		case SURV_EVENT_LEFT:
 			upperpow = pow(upper, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - exp(-gama * (upperpow - truncationpow)));
 			}
 			break;
@@ -3959,7 +4026,7 @@ int loglikelihood_weibull(double *logll, double *x, int m, int idx, double *x_ve
 			lowerpow = pow(lower, alpha);
 			upperpow = pow(upper, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = -gama * (lowerpow - truncationpow) + log(1.0 - exp(-gama * (upperpow - lowerpow)));
 			}
 			break;
@@ -4004,25 +4071,25 @@ int loglikelihood_loglogistic(double *logll, double *x, int m, int idx, double *
 		switch (ievent) {
 		case SURV_EVENT_FAILURE:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = logff(y, eta);
 			}
 			break;
 		case SURV_EVENT_RIGHT:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - FF(upper, eta));
 			}
 			break;
 		case SURV_EVENT_LEFT:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(FF(lower, eta));
 			}
 			break;
 		case SURV_EVENT_INTERVAL:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(FF(upper, eta) - FF(lower, eta));
 			}
 			break;
@@ -4073,25 +4140,25 @@ int loglikelihood_lognormal(double *logll, double *x, int m, int idx, double *x_
 		switch (ievent) {
 		case SURV_EVENT_FAILURE:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = logff(y, eta);
 			}
 			break;
 		case SURV_EVENT_RIGHT:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - FF(upper, eta));
 			}
 			break;
 		case SURV_EVENT_LEFT:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(FF(lower, eta));
 			}
 			break;
 		case SURV_EVENT_INTERVAL:
 			for (i = 0; i < m; i++) {
-				eta = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				eta = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(FF(upper, eta) - FF(lower, eta));
 			}
 			break;
@@ -4142,21 +4209,21 @@ int loglikelihood_weibull_cure(double *logll, double *x, int m, int idx, double 
 		case SURV_EVENT_FAILURE:
 			ypow = pow(y, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - p) + log(gama) + log(alpha) + (alpha - 1.0) * log(y) - gama * (ypow - truncationpow);
 			}
 			break;
 		case SURV_EVENT_RIGHT:
 			lowerpow = pow(lower, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(p + (1.0 - p) * exp(-gama * (lowerpow - truncationpow)));
 			}
 			break;
 		case SURV_EVENT_LEFT:
 			upperpow = pow(upper, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log((1.0 - p) * (1.0 - exp(-gama * (upperpow - truncationpow))));
 			}
 			break;
@@ -4164,7 +4231,7 @@ int loglikelihood_weibull_cure(double *logll, double *x, int m, int idx, double 
 			lowerpow = pow(lower, alpha);
 			upperpow = pow(upper, alpha);
 			for (i = 0; i < m; i++) {
-				gama = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+				gama = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 				logll[i] = log(1.0 - p) - gama * (lowerpow - truncationpow) + log(1.0 - exp(-gama * (upperpow - lowerpow)));
 			}
 			break;
@@ -4192,12 +4259,12 @@ int loglikelihood_stochvol(double *logll, double *x, int m, int idx, double *x_v
 
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			var = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			var = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = -0.9189385332046726 - 0.5 * log(var) - 0.5 * SQR(y) / var;
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			var = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			var = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = 1.0 - 2.0 * (1.0 - inla_Phi(ABS(y) / sqrt(var)));
 		}
 	}
@@ -4227,14 +4294,14 @@ int loglikelihood_stochvol_t(double *logll, double *x, int m, int idx, double *x
 		lg1 = gsl_sf_lngamma(dof / 2.0);
 		lg2 = gsl_sf_lngamma((dof + 1.0) / 2.0);
 		for (i = 0; i < m; i++) {
-			var_u = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			var_u = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			f = sqrt(var_u) / sd;
 			obs = y / f;
 			logll[i] = lg2 - lg1 - 0.5 * log(M_PI * dof) - (dof + 1.0) / 2.0 * log(1.0 + SQR(obs) / dof) - log(f);
 		}
 	} else {
 		for (i = 0; i < -m; i++) {
-			var_u = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			var_u = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			logll[i] = 1.0 - 2.0 * gsl_cdf_tdist_Q(ABS(y) * sd / sqrt(var_u), dof);
 		}
 	}
@@ -4268,7 +4335,7 @@ int loglikelihood_stochvol_nig(double *logll, double *x, int m, int idx, double 
 	a = log(gam * shape / M_PI) + 0.5 * log(skew2 + shape2) + shape2;
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
-			var_u = ds->predictor_invlinkfunc(x[i] + OFFSET(idx), MAP_FORWARD, NULL);
+			var_u = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			obs = y / sqrt(var_u);
 			tmp = SQR(gam * obs + skew) + shape2;
 			logll[i] = a - 0.5 * log(tmp) + skew * (gam * obs + skew)
@@ -5381,7 +5448,7 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 
 	if (mb->verbose) {
 		printf("\t\tfilename [%s]\n", filename);
-		printf("\t\tfile.offset [%16.0g]\n", (double) fileoffset);
+		printf("\t\tfile.offset [%lu]\n", (long unsigned) fileoffset);
 	}
 
 	mb->lc_prec[mb->nlc] = iniparser_getdouble(ini, inla_string_join(secname, "PRECISION"), 1.0e9);
@@ -5395,7 +5462,7 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 		GMRFLib_io_seek(io, fileoffset, SEEK_SET);
 
 	if (mb->verbose) {
-		printf("\t\tOpen file [%s] at location [%16.0g]\n", filename, (double) fileoffset);
+		printf("\t\tOpen file [%s] at location [%lu]\n", filename, (long unsigned) fileoffset);
 	}
 
 	GMRFLib_io_read(io, &num_sections, sizeof(int));
@@ -5477,15 +5544,6 @@ int inla_parse_lincomb(inla_tp * mb, dictionary * ini, int sec)
 	 * sort them with increasing idx's (and carry the weights along) to speed things up later on. 
 	 */
 	GMRFLib_qsorts((void *) lc->idx, (size_t) lc->n, sizeof(int), (void *) lc->weight, sizeof(float), NULL, 0, GMRFLib_icmp);
-
-	/*
-	 * add these as well 
-	 */
-	for (i = 0; i < GMRFLib_MAX_THREADS; i++) {
-		lc->tinfo[i].first_nonzero = lc->idx[0];
-		lc->tinfo[i].last_nonzero = lc->idx[lc->n - 1];
-	}
-
 	if (mb->verbose) {
 		printf("\t\tNumber of non-zero weights [%1d]\n", lc->n);
 		printf("\t\tLincomb = \tidx \tweight\n");
@@ -5974,6 +6032,10 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_binomial;
 		ds->data_id = L_BINOMIAL;
 		ds->predictor_invlinkfunc = CHOSE_LINK(ds->link);
+	} else if (!strcasecmp(ds->data_likelihood, "CBINOMIAL")) {
+		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_cbinomial;
+		ds->data_id = L_CBINOMIAL;
+		ds->predictor_invlinkfunc = CHOSE_LINK(ds->link);
 	} else if (!strcasecmp(ds->data_likelihood, "ZEROINFLATEDBINOMIAL0")) {
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_zeroinflated_binomial0;
 		ds->data_id = L_ZEROINFLATEDBINOMIAL0;
@@ -6159,7 +6221,8 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 			}
 		}
 	} else if (ds->data_id == L_BINOMIAL || ds->data_id == L_ZEROINFLATEDBINOMIAL0 || ds->data_id == L_ZEROINFLATEDBINOMIAL1 ||
-		   ds->data_id == L_ZEROINFLATEDBINOMIAL2 || ds->data_id == L_ZEROINFLATEDBETABINOMIAL2 || ds->data_id == L_ZERO_N_INFLATEDBINOMIAL2) {
+		   ds->data_id == L_ZEROINFLATEDBINOMIAL2 || ds->data_id == L_ZEROINFLATEDBETABINOMIAL2 || ds->data_id == L_ZERO_N_INFLATEDBINOMIAL2 ||
+		   ds->data_id == L_CBINOMIAL) {
 		for (i = 0; i < mb->predictor_ndata; i++) {
 			if (ds->data_observations.d[i]) {
 				if (ds->data_observations.nb[i] <= 0.0 ||
@@ -15101,6 +15164,10 @@ int inla_output_misc(const char *dir, GMRFLib_ai_misc_output_tp * mo, int ntheta
 	}
 
 	if (mo->compute_corr_lin && mo->corr_lin) {
+		/*
+		 * OOPS: this matrix is in its own internal ordering, where the names of the rows/columns are defined as the tags in the lincomb.derived. So we
+		 * output this matrix in its raw form, and add the names in 'collect.R'. 
+		 */
 		inla_output_matrix(ndir, NULL, "lincomb_derived_correlation_matrix.dat", mo->compute_corr_lin, mo->corr_lin);
 	}
 
