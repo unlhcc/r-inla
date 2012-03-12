@@ -348,8 +348,7 @@
     fac = size/n
 
     ## duplicated entries will simply add up, so we need to truncate
-    ## afterwards if we want a binary.pattern.
-    M = inla.as.dgTMatrix(sparseMatrix(i=ceiling(AA$i*fac[1]), j=ceiling(AA$j*fac[2]), x=1, dims=size))
+    M = inla.as.dgTMatrix(sparseMatrix(i=pmin(size[1], ceiling(AA$i*fac[1])), j=pmin(size[2], ceiling(AA$j*fac[2])), x=1, dims=size))
     if (binary.pattern)
         M[ M != 0 ] = 1
 
