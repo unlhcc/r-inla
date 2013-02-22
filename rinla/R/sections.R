@@ -1,6 +1,6 @@
 ### Functions to write the different sections in the .ini-file
 
-`inla.write.hyper` = function(hyper, file, prefix="")
+`inla.write.hyper` = function(hyper, file, prefix="", data.dir, ngroup = -1L)
 {
     stopifnot(!missing(hyper))
     stopifnot(!missing(file))
@@ -27,14 +27,32 @@
         ## if the expression ends with a ";" with or without spaces, remove it
         tmp.prior = gsub(";*[ \t]*$", "", tmp.prior)
         ## for all priors except the "expression:" one,  then trim the name
-        if (length(grep("^expression[ \t]*:", tolower(tmp.prior))) == 0L) {
+        if (length(grep("^(expression|table)[ \t]*:", tolower(tmp.prior))) == 0L) {
             tmp.prior = inla.trim.family(tmp.prior)
         }
-        cat(prefix, "prior",      suff, " = ", tmp.prior, "\n", file = file, append = TRUE, sep="")
+
+        ## table: is now stored in a file
+        if (length(grep("^table:",  tmp.prior)) > 0) {
+            tab = substr(tmp.prior, nchar("table:")+1, nchar(tmp.prior))
+            xy = as.numeric(unlist(strsplit(tab, "[ \t\n\r]+")))
+            xy = xy[!is.na(xy)]
+            nxy = length(xy) %/% 2L
+            xx = xy[1:nxy]
+            yy = xy[1:nxy + nxy]
+            xy = cbind(xx, yy)
+            file.xy = inla.tempfile(tmpdir=data.dir)
+            inla.write.fmesher.file(xy, filename = file.xy)
+            file.xy = gsub(data.dir, "$inladatadir", file.xy, fixed=TRUE)
+            cat("prior = table:", file.xy, "\n", append=TRUE, sep = " ", file = file)
+        } else {
+            cat(prefix, "prior",      suff, " = ", tmp.prior, "\n", file = file, append = TRUE, sep="")
+        }
 
         cat(prefix, "parameters", suff, " = ", inla.paste(hyper[[k]]$param), "\n", file = file, append = TRUE, sep="")
-        cat(prefix, "to.theta",   suff, " = ", inla.function2source(hyper[[k]]$to.theta), "\n", file = file, append = TRUE, sep="")
-        cat(prefix, "from.theta",   suff, " = ", inla.function2source(hyper[[k]]$from.theta), "\n", file = file, append = TRUE, sep="")
+        to.t = gsub("REPLACE.ME.ngroup", paste("ngroup=", as.integer(ngroup), sep=""), inla.function2source(hyper[[k]]$to.theta))
+        from.t = gsub("REPLACE.ME.ngroup", paste("ngroup=", as.integer(ngroup), sep=""), inla.function2source(hyper[[k]]$from.theta))
+        cat(prefix, "to.theta", suff, " = ", to.t, "\n", file = file, append = TRUE, sep="")
+        cat(prefix, "from.theta", suff, " = ", from.t, "\n", file = file, append = TRUE, sep="")
     }
 
     return ()
@@ -57,7 +75,7 @@
     return (inla.data.section(...))
 }
     
-`inla.data.section` = function(file, family, file.data, file.weights, control, i.family="")
+`inla.data.section` = function(file, family, file.data, file.weights, control, i.family="", data.dir)
 {
     ## this function is called from 'inla.family.section' only.
     cat("[INLA.Data", i.family, "]\n", sep = "", file = file,  append = TRUE)
@@ -92,8 +110,15 @@
             sep="", file=file, append=TRUE)
     }
     
-    inla.write.hyper(control$hyper, file)
+    inla.write.hyper(control$hyper, file, data.dir = data.dir)
     
+    ## the mix-part
+    inla.write.boolean.field("mix.use", control$control.mix$use, file)
+    if (control$control.mix$use) {
+        cat("mix.model = ", control$control.mix$model, "\n", sep="", file=file, append=TRUE)
+        inla.write.hyper(control$control.mix$hyper, file, prefix = "mix.", data.dir = dirname(file))
+    }
+
     cat("\n", sep = " ", file = file,  append = TRUE)
 }
 
@@ -136,19 +161,27 @@
         cat("spde2.prefix =", fnm, "\n", sep = " ", file = file,  append = TRUE)
         cat("spde2.transform =", random.spec$spde2.transform, "\n", sep = " ", file = file,  append = TRUE)
     }
-    if (!is.null(random.spec$of)) {
-        cat("of =", random.spec$of, "\n", sep = " ", file = file,  append = TRUE)
-    }
-    if (!is.null(random.spec$precision)) {
-        cat("precision =", random.spec$precision, "\n", sep = " ", file = file,  append = TRUE)
+    if (inla.one.of(random.spec$model, "copy")) {
+        if (!is.null(random.spec$of)) {
+            cat("of =", random.spec$of, "\n", sep = " ", file = file,  append = TRUE)
+        }
+        if (!is.null(random.spec$precision)) {
+            cat("precision =", random.spec$precision, "\n", sep = " ", file = file,  append = TRUE)
+        }
+        if (!is.null(random.spec$range)) {
+            cat("range.low  =", random.spec$range[1], "\n", sep = " ", file = file, append = TRUE)
+            cat("range.high =", random.spec$range[2], "\n", sep = " ", file = file, append = TRUE)
+        }
     }
 
-    if (!is.null(random.spec$range)) {
-        cat("range.low  =", random.spec$range[1], "\n", sep = " ", file = file, append = TRUE)
-        cat("range.high =", random.spec$range[2], "\n", sep = " ", file = file, append = TRUE)
+    if (inla.one.of(random.spec$model, "ar")) {
+        ## set a default prior for order > 1 if the param is given only for p=1
+        par = random.spec$hyper$theta2$param
+        if (length(par) == 2L && random.spec$order > 1L) {
+            random.spec$hyper$theta2$param = c(rep(par[1], random.spec$order), par[2]*diag(random.spec$order))
+        }
     }
-
-    inla.write.hyper(random.spec$hyper, file)
+    inla.write.hyper(random.spec$hyper, file, data.dir = data.dir, ngroup = ngroup)
 
     if (inla.model.properties(random.spec$model, "latent")$nrow.ncol) {
         cat("nrow = ", random.spec$nrow, "\n", sep = " ", file = file,  append = TRUE)
@@ -169,9 +202,30 @@
 
     if (!is.null(ngroup) && ngroup > 1) {
         cat("ngroup = ", ngroup, "\n", sep = " ", file = file,  append = TRUE)
-        if (!is.null(random.spec$control.group$model))
-            cat("group.model = ", random.spec$control.group$model, "\n", sep = " ", file = file,  append = TRUE)
-        inla.write.hyper(random.spec$control.group$hyper, file = file,  prefix = "group.")
+        cat("group.model = ", random.spec$control.group$model, "\n", sep = " ", file = file,  append = TRUE)
+        inla.write.boolean.field("group.cyclic", random.spec$control.group$cyclic, file)
+        if (inla.one.of(random.spec$control.group$model, "ar")) {
+            ## 'order' is only used for model=ar
+            p = inla.ifelse(is.null(random.spec$control.group$order), 0, as.integer(random.spec$control.group$order))
+            cat("group.order = ", p, "\n", sep = " ", file = file,  append = TRUE)
+            ## set a default prior for order > 1 if the param is given only for p=1
+            par = random.spec$control.group$hyper$theta2$param
+            if (length(par) == 2L) {
+                if (p > 1L) {
+                    random.spec$control.group$hyper$theta2$param = c(rep(par[1], p), par[2]*diag(p))
+                }
+            }
+        }
+        if (inla.one.of(random.spec$control.group$model, "besag")) {
+            stopifnot(!is.null(random.spec$control.group$graph))
+            gfile = inla.write.graph(random.spec$control.group$graph, filename = inla.tempfile())
+            fnm = inla.copy.file.for.section(gfile, data.dir)
+            unlink(gfile)
+            cat("group.graph = ", fnm, "\n", sep = " ", file = file,  append = TRUE)
+        } else {
+            stopifnot(is.null(random.spec$control.group$graph))
+        }
+        inla.write.hyper(random.spec$control.group$hyper, file = file,  prefix = "group.", data.dir = data.dir, ngroup = ngroup)
     }
         
     if (!is.null(random.spec$cyclic)) {
@@ -216,24 +270,41 @@
         cat("compute = 1\n", sep = " ", file = file,  append = TRUE)
     }
 
-    if (random.spec$model == "me") {
+    if (inla.one.of(random.spec$model, c("mec", "meb", "iid"))) {
         ## possible scale-variable
         if (!is.null(random.spec$scale)) {
             file.scale=inla.tempfile(tmpdir=data.dir)
             ns = length(random.spec$scale)
-            if (is.null(random.spec$values.order)) {
+            if (is.null(random.spec$values)) {
                 idxs = 1:ns
             } else {
-                idxs = random.spec$values.order
-                stopifnot(length(random.spec$values.order) == ns)
+                idxs = 1:ns
+                stopifnot(length(random.spec$values) == ns)
+                stopifnot(!is.null(idxs))
             }
             inla.write.fmesher.file(as.matrix(cbind(idxs -1L, random.spec$scale)), filename=file.scale, debug = FALSE)
             ##print(cbind(idxs, random.spec$scale))
             file.scale = gsub(data.dir, "$inladatadir", file.scale, fixed=TRUE)
             cat("scale =", file.scale,"\n", sep = " ", file = file,  append = TRUE)
         }
+    } else {
+        if (!is.null(random.spec$scale)) {
+            stop(paste("Section [",  label, "]: option 'scale' is not NULL but not used.",  sep=""))
+        }
+    }
+
+    if (random.spec$model == "rgeneric") {
+        cat("rgeneric.Id = ", random.spec$rgeneric$Id, "\n", append=TRUE, sep = " ", file = file)
+        stopifnot(!file.exists(random.spec$rgeneric$fifo$R2c))
+        stopifnot(!file.exists(random.spec$rgeneric$fifo$c2R))
+        cat("rgeneric.fifo.R2c = ", random.spec$rgeneric$fifo$R2c, "\n", append=TRUE, sep = " ", file = file)
+        cat("rgeneric.fifo.c2R = ", random.spec$rgeneric$fifo$c2R, "\n", append=TRUE, sep = " ", file = file)
     }
             
+    if (random.spec$model == "ar") {
+        cat("order = ", random.spec$order, "\n", append=TRUE, sep = " ", file = file)
+    }
+
     cat("\n", sep = " ", file = file,  append = TRUE)
 }
 
@@ -248,6 +319,7 @@
     if (!is.null(inla.spec$strategy)) {
         cat("strategy = ", inla.spec$strategy,"\n", sep = " ", file = file,  append = TRUE)
     }
+    inla.write.boolean.field("fast", inla.spec$fast, file)
     if (!is.null(inla.spec$linear.correction)) {
         cat("linear.correction = ", inla.spec$linear.correction,"\n", sep = " ", file = file,  append = TRUE)
     }
@@ -410,7 +482,7 @@
         cat("link.fitted.values = ", file.link.fitted.values,"\n", sep = " ", file = file, append=TRUE)
     }
 
-    inla.write.hyper(predictor.spec$hyper, file)
+    inla.write.hyper(predictor.spec$hyper, file, data.dir = data.dir)
 
     if (!is.null(predictor.spec$cross) && length(predictor.spec$cross) > 0) {
         if (length(predictor.spec$cross) != n + m) {
@@ -470,7 +542,7 @@
 }
 
 `inla.problem.section` = function(file , data.dir, result.dir, hyperpar, return.marginals, dic,
-        cpo, mlik, quantiles, smtp, q, strategy, graph)
+        cpo, mlik, quantiles, smtp, q, strategy, graph, config)
 {
     cat("", sep = "", file = file, append=FALSE)
     cat("###  ", inla.version("hgid"), "\n", sep = "", file = file,  append = TRUE) 
@@ -494,6 +566,7 @@
     inla.write.boolean.field("mlik", mlik, file)
     inla.write.boolean.field("q", q, file)
     inla.write.boolean.field("graph", graph, file)
+    inla.write.boolean.field("config", config, file)
 
     if (!is.null(smtp)) {
         cat("smtp = ", smtp, "\n", sep = " ", file = file,  append = TRUE)
@@ -543,21 +616,27 @@
     if (length(grep("^[(]Intercept[)]$", inla.trim(label))) == 1) {
         prec = control.fixed$prec.intercept
         mean = control.fixed$mean.intercept
-        if (!is.null(mean)) {
-            cat("mean = ", mean, "\n", sep = " ", file = file,  append = TRUE)
+        if (is.null(mean)) {
+            mean =inla.set.control.fixed.default()$mean.intercept
         }
-        if (!is.null(prec)) {
-            cat("precision = ", prec, "\n", sep = " ", file = file,  append = TRUE)
+        if (is.null(prec)) {
+            prec =inla.set.control.fixed.default()$prec.intercept
         }
+        stopifnot(!is.null(mean) || !is.null(prec))
+        cat("mean = ", mean, "\n", sep = " ", file = file,  append = TRUE)
+        cat("precision = ", prec, "\n", sep = " ", file = file,  append = TRUE)
     } else {
-        prec = inla.parse.fixed.prior(label, control.fixed$prec)
         mean = inla.parse.fixed.prior(label, control.fixed$mean)
-        if (!is.null(mean)) {
-            cat("mean = ", mean, "\n", sep = " ", file = file,  append = TRUE)
+        prec = inla.parse.fixed.prior(label, control.fixed$prec)
+        if (is.null(mean)) {
+            mean = inla.set.control.fixed.default()$mean
         }
-        if (!is.null(prec)) {
-            cat("precision = ", prec, "\n", sep = " ", file = file,  append = TRUE)
+        if (is.null(prec)) {
+            prec = inla.set.control.fixed.default()$prec
         }
+        stopifnot(!is.null(mean) || !is.null(prec))
+        cat("mean = ", mean, "\n", sep = " ", file = file,  append = TRUE)
+        cat("precision = ", prec, "\n", sep = " ", file = file,  append = TRUE)
     }
     cat("\n", sep = " ", file = file,  append = TRUE)
 }
@@ -646,22 +725,33 @@
         stopifnot(!is.null(fp.binary))
 
         numlen = inla.numlen(length(lincomb))
+        prev.secnames = c()
 
         for(i in 1:length(lincomb)) {
             
-            if (is.null(names(lincomb[i])) || is.na(names(lincomb[i]))) {
+            nam = names(lincomb[i])
+            if (is.null(nam) || is.na(nam)) {
                 secname = paste("lincomb.", inla.num(i, width=numlen), sep="")
                 lc = lincomb[[i]]
-            } else if (names(lincomb[i]) == "") {
+            } else if (nam == "") {
                 secname = paste("lincomb.", inla.num(i, width=numlen), sep="")
                 lc = lincomb[[i]]
             } else {
-                secname = paste("lincomb.", names(lincomb[i])[1], sep="")
+                secname = paste("lincomb.", nam[1], sep="")
                 lc = lincomb[[i]]
             }
                 
+            ## check if the name is used previously, if so, stop.
+            if (secname %in% prev.secnames) {
+                stop(paste("Duplicated name [", secname, "] in 'lincomb'; need unique names or NA or ''.",
+                           sep=""))
+            } else {
+                prev.secnames = c(secname, prev.secnames)
+            }
+
             cat("\n[", secname, "]\n", sep = "", file = file,  append = TRUE)
             cat("type = lincomb\n", sep = " ", file = file,  append = TRUE)
+            cat("lincomb.order = ", i, "\n", sep = " ", file = file,  append = TRUE)
             if (!is.null(contr$precision)) {
                 cat("precision = ", contr$precision,"\n", sep = " ", file = file,  append = TRUE)
             }
@@ -766,7 +856,7 @@
         cat("model = ", inla.ifelse(k == 1, "z", "zadd"),"\n", sep = " ", file = file,  append = TRUE)
         cat("n = 1\n", file=file, append = TRUE)
         if (k == 1L) {
-            inla.write.hyper(random.spec$hyper, file)
+            inla.write.hyper(random.spec$hyper, file, data.dir = data.dir)
         }
 
         file.cov=inla.tempfile(tmpdir=data.dir)

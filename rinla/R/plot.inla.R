@@ -1,3 +1,55 @@
+##! \name{plot.inla}
+##! \alias{plot.inla}
+##! \alias{inla.plot}
+##! \title{Default INLA plotting}
+##! \description{
+##!   Takes am \code{inla} object produced by \code{inla} and plot the results
+##! }
+##! \usage{
+##! \method{plot}{inla}(x, 
+##!              plot.fixed.effects = TRUE,
+##!              plot.lincomb = TRUE,
+##!              plot.random.effects = TRUE,
+##!              plot.hyperparameters = TRUE,
+##!              plot.predictor = TRUE,
+##!              plot.q = TRUE,
+##!              plot.cpo = TRUE,
+##!              postscript = FALSE,
+##!              pdf = FALSE,
+##!              prefix = "inla.plots/figure-", 
+##!              ...)
+##! }
+##! \arguments{
+##!   \item{x}{A fitted  \code{inla} object produced by \code{inla} }
+##!   \item{plot.fixed.effects}{Boolean indicating if posterior marginals
+##!     for the fixed effects in the model should be plotted }
+##!   \item{plot.lincomb}{Boolean indicating if posterior marginals
+##!     for the linear combinations should be plotted }
+##!   \item{plot.random.effects}{Boolean indicating if posterior mean and quantiles
+##!     for the random effects in the model should be plotted  }
+##!   \item{plot.hyperparameters}{Boolean indicating if posterior marginals
+##!     for the hyperparameters in the model should be plotted }
+##!   \item{plot.predictor}{Boolean indicating if posterior mean and quantiles
+##!     for the linear predictor in the model should be plotted }
+##!   \item{plot.q}{Boolean indicating if precision matrix should be displayed}
+##!   \item{plot.cpo}{Boolean indicating if CPO/PIT valuesshould be plotted}
+##!   \item{single}{Boolean indicating if there should be more than one plot per page
+##!                 (FALSE) or just one (TRUE)}
+##!   \item{postscript}{Boolean indicating if postscript files should be produced instead}
+##!   \item{pdf}{Boolean indicating if PDF files should be produced instead}
+##!   \item{prefix}{The prefix for the created files. Additional numbering and suffix is added.}
+##!   \item{...}{Additional arguments to \code{postscript()}, \code{pdf()} or \code{dev.new()}.} 
+##! }
+##! \value{The return value is a list of the files created (if any).}
+##! \author{Havard Rue \email{hrue@math.ntnu.no} }
+##! \seealso{\code{\link{inla}}}
+##! \examples{
+##!     result = inla(...)
+##!     plot(result)
+##!     plot(result, single=TRUE)
+##!     plot(result, single=TRUE, pdf=TRUE, paper = "a4")
+##! }
+##! \keyword{plot}
 
 `plot.inla` =
     function(x,
@@ -9,8 +61,82 @@
              plot.q = TRUE,
              plot.cpo = TRUE,
              single = FALSE, 
+             postscript = FALSE,
+             pdf = FALSE, 
+             prefix = "inla.plots/figure-", 
              ...)
 {
+    figure.count = 1L
+    figures = c()
+    
+    if (postscript && pdf) {
+        stop("Only one of 'postscript' and 'pdf' can be generated at the time.")
+    }
+
+    initiate.plot = function(...)
+    {
+        if (!postscript && !pdf) {
+            inla.dev.new(...)
+        } else {
+            dir = dirname(prefix)
+            if (!file.exists(dir) && nchar(dir) > 0L) {
+                dir.create(dir, recursive=TRUE)
+            } else {
+                stopifnot(file.info(dir)$isdir)
+            }
+        }
+        return (invisible())
+    }
+
+    new.plot = function(...)
+    {
+        if (!postscript && !pdf) {
+            inla.dev.new(...)
+        } else {
+            found = FALSE
+            while(!found) {
+                filename = paste(prefix,
+                        inla.ifelse(regexpr("/$", prefix), "", "/"), 
+                        figure.count,
+                        inla.ifelse(postscript, ".eps", ".pdf"), sep="")
+                if (file.exists(filename)) {
+                    figure.count <<- figure.count + 1L ## YES
+                } else {
+                    found = TRUE
+                }
+            }
+            if (postscript) {
+                postscript(file = filename, ...)
+            } else if (pdf) {
+                pdf(file = filename, ...)
+            } else {
+                stop("This should not happen")
+            }
+            figures <<- c(figures, filename)
+        }
+        return (invisible())
+    }
+
+    close.plot = function(...)
+    {
+        if (postscript || pdf) {
+            if (names(dev.cur()) != "null device") {
+                dev.off()
+            }
+        } 
+        return (invisible())
+    }
+        
+    close.and.new.plot = function(...)
+    {
+        close.plot(...)
+        new.plot(...)
+        return (invisible())
+    }
+
+    ##
+    initiate.plot(...)
+    
     if (plot.fixed.effects) {
         ## plot marginals for the fixed effects
         fix = x$marginals.fixed
@@ -25,12 +151,10 @@
                 plot.layout = c(3, 3)
             }
             np = prod(plot.layout)
-            par(mfrow=c(plot.layout[1], plot.layout[2]))
-
             ip = 0
             for(i in 1:nf) {
                 if (ip%%np == 0) {
-                    inla.dev.new()
+                    close.and.new.plot(...)
                     par(mfrow=c(plot.layout[1], plot.layout[2]))
                 }
                 ip = ip + 1
@@ -39,7 +163,7 @@
                     ss = x$summary.fixed[i,]
                     sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
                     plot(inla.smarginal(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"]", sep=""),
-                         sub=sub, xlab="", ylab="", ...)
+                         sub=sub, xlab="", ylab="")
                 }
             }
         }
@@ -59,12 +183,10 @@
                 plot.layout = c(3, 3)
             }
             np = prod(plot.layout)
-            par(mfrow=c(plot.layout[1], plot.layout[2]))
-
             ip = 0
             for(i in 1:nf) {
                 if (ip%%np == 0) {
-                    inla.dev.new()
+                    close.and.new.plot(...)
                     par(mfrow=c(plot.layout[1], plot.layout[2]))
                 }
                 ip = ip + 1
@@ -73,7 +195,7 @@
                     ss = x$summary.lincomb.derived[i,]
                     sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
                     plot(inla.smarginal(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"] (derived)", sep=""),
-                         sub=sub, xlab="", ylab="", ...)
+                         sub=sub, xlab="", ylab="")
                 }
             }
         }
@@ -98,12 +220,10 @@
                 plot.layout = c(3, 3)
             }
             np = prod(plot.layout)
-            par(mfrow=c(plot.layout[1], plot.layout[2]))
-
             ip = 0
             for(i in 1:nf) {
                 if (ip%%np == 0) {
-                    inla.dev.new()
+                    close.and.new.plot(...)
                     par(mfrow=c(plot.layout[1], plot.layout[2]))
                 }
                 ip = ip + 1
@@ -112,7 +232,7 @@
                     ss = x$summary.lincomb[i,]
                     sub=paste("Mean = ", round(ss[names(ss)=="mean"], 3)," SD = ", round(ss[names(ss)=="sd"], 3), sep="")
                     plot(inla.smarginal(fix[[i]]), type="l", main=paste("PostDens [", inla.nameunfix(labels.fix[i]),"]", sep=""),
-                         sub=sub, xlab="", ylab="", ...)
+                         sub=sub, xlab="", ylab="")
                 }
             }
         }
@@ -156,7 +276,7 @@
                                 for(ii in 1:inla.ifelse(r.N > r.n, r.N %/% r.n, 1)) {
 
                                     if (ip%%np == 0) {
-                                        inla.dev.new()
+                                        close.and.new.plot(...)
                                         par(mfrow=c(plot.layout[1], plot.layout[2]))
                                     }
                                     ip = ip + 1
@@ -185,7 +305,7 @@
                                         plot(xval, yval,
                                              ylim=range(rr[, setdiff(colnames(rr), c("ID", "sd", "kld"))]),
                                              xlim=range(xval),
-                                             axes=TRUE, ylab="", xlab="", type=tp, lwd=2, ...)
+                                             axes=TRUE, ylab="", xlab="", type=tp, lwd=2)
                                         if (!is.null(x$.args$.internal$baseline.hazard.strata.coding)) {
                                             rep.txt = inla.paste(c(rep.txt, "[",
                                                     x$.args$.internal$baseline.hazard.strata.coding[r.rep], "]"), sep="")
@@ -197,14 +317,14 @@
                                             plot(xval, yval,
                                                  ylim=range(rr[, setdiff(colnames(rr), c("ID", "sd", "kld"))]),
                                                  xlim=range(xval),
-                                                 axes=FALSE, ylab="", xlab="", type=tp, lwd=2, ...)
+                                                 axes=FALSE, ylab="", xlab="", type=tp, lwd=2)
                                             axis(1)
                                             axis(2)
                                             box()
                                         } else {
                                             plot(as.factor(xval), yval,
                                                  ylim=range(rr[, setdiff(colnames(rr), c("ID", "sd", "kld"))]),
-                                                 axes=TRUE, ylab="", xlab="", type=tp, lwd=2, ...)
+                                                 axes=TRUE, ylab="", xlab="", type=tp, lwd=2)
                                         }
                                     }
                     
@@ -239,7 +359,7 @@
                         for (r.rep in 1:nrep) {
                             for(r.group in 1:ngroup) {
                                 if (ip%%np == 0) {
-                                    inla.dev.new()
+                                    close.and.new.plot(...)
                                     par(mfrow=c(plot.layout[1], plot.layout[2]))
                                 }
                                 ip = ip + 1
@@ -260,7 +380,7 @@
                                     zz = x$marginals.random[[i]][[r.rep]]
                                     plot(inla.smarginal(zz), type="l",
                                          main=paste("PostDens [", inla.nameunfix(labels.random[i]),"]", " ", rep.txt, sep=""),
-                                         xlab=inla.nameunfix(labels.random[i]), ylab="", ...)
+                                         xlab=inla.nameunfix(labels.random[i]), ylab="")
                                 }
                             }
                         }
@@ -286,7 +406,7 @@
             ip = 0
             for(i in 1:nhyper) {
                 if (ip%%np == 0) {
-                    inla.dev.new()
+                    close.and.new.plot(...)
                     par(mfrow=c(plot.layout[1], plot.layout[2]))
                 }
                 ip = ip + 1
@@ -294,7 +414,7 @@
                 hh = hyper[[i]]
                 if (!is.null(hh)) {
                     label = inla.nameunfix(names(hyper)[i])
-                    plot(inla.smarginal(hh), type="l", ylab="", xlab="", ...)
+                    plot(inla.smarginal(hh), type="l", ylab="", xlab="")
                     title(main=paste("PostDens [", label, "]", sep=""))
                 }
             }
@@ -340,7 +460,7 @@
                 }
             
                 if (!is.null(lp)) {
-                    inla.dev.new()
+                    close.and.new.plot(...)
                     if (!is.null(fv)) {
                         if (single) {
                             par(mfrow=c(1, 1))
@@ -384,7 +504,7 @@
         }
     }
     if (plot.q && !is.null(x$Q)) {
-        inla.dev.new()
+        close.and.new.plot(...)
         if (single) {
             par(mfrow = c(1, 1))
         } else {
@@ -408,7 +528,7 @@
     }
     if (plot.cpo) {
         if (!is.null(x$cpo$pit) || !is.null(x$cpo$cpo)) {
-            inla.dev.new()
+            close.and.new.plot(...)
             if (single) {
                 par(mfrow=c(1, 1))
             } else {
@@ -446,11 +566,13 @@
             n.fail = sum(x$cpo$failure != 0.0)
             plot(x$cpo$cpo, main = paste("The CPO-values", ", n.fail", n.fail, sep=""), ylab = "Probability", xlab = "index", ...)
             if (n.fail > 0) {
-                points(x$cpo$cpo[ x$cpo$failure > 0 ], pch=20)
+                points(x$cpo$cpo[ x$cpo$failure > 0 ], pch=20L)
             }
             hist(x$cpo$cpo, main = paste("Histogram of the CPO-values", ", n.fail", n.fail, sep=""), xlab = "Probability",
-                 n = max(20, min(round(length(x$cpo$pit)/10), 100)))
+                 n = max(20L, min(round(length(x$cpo$pit)/10L), 100L)))
         }
     }
-}
 
+    close.plot(...)
+    return (invisible(figures))
+}

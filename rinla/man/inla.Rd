@@ -49,13 +49,24 @@ for each posterior marginal, the values
 likelihoods defined as \deqn{E_i\exp(\eta_i)}{E
 exp(eta)} where \deqn{\eta_i}{eta} is the linear
 predictor. If not provided it is set to \code{rep(1, n.data)}.}
-\item{offset}{ This can be used to specify an
-a-priori known component to be included in the linear
-predictor during fitting.  This should be \code{NULL}
-or a numeric vector of length either one or equal to
-the number of cases. One or more \code{offset()}
-terms can be included in the formula instead or as
-well, and if both are specified their sum is used.}
+\item{offset}{This argument is used to specify an
+a-priori known and fixed component to be included in
+the linear predictor during fitting.  This should be
+\code{NULL} or a numeric vector of length either one
+or equal to the number of cases. One or more
+\code{offset()} terms can be included in the formula
+instead or as well, and if both are used, they are
+combined into a common offset.  If the
+\code{A}-matrix is used in the linear predictor
+statement \code{control.predictor}, then the
+\code{offset} given in this argument is added to
+\code{eta*}, the linear predictor related to the
+observations, as \code{eta* = A eta + offset},
+whereas an offset in the formula is added to
+\code{eta}, the linear predictor related to the
+formula, as \code{eta = ... + offset.formula}. So in
+this case, the offset defined here and in the formula
+has a different meaning and usage.}
 \item{scale}{ Fixed (optional) scale parameters of
 the precision for Gaussian and Student-T response
 models. Default value is rep(1, n.data).}
@@ -119,8 +130,10 @@ files are stored in a directory called "inla".  }
 \item{working.directory}{ A string giving the name
 of an alternative directory where to store the
 working files }
-\item{silent}{ A boolean variable defining how the
-\code{inla}-program should be ``silent''.  }
+\item{silent}{If equal to 1L or TRUE, then the
+\code{inla}-program would be ``silent''. If equal to
+2L, then supress also error messages from the
+\code{inla}-program.}
 \item{debug}{ If \code{TRUE}, then enable some debug
 output.  }
 }
@@ -150,13 +163,15 @@ A list containing the posterior marginal
 densities of the hyperparameters of the model.} 
 \item{summary.linear.predictor}{
  A matrix containing the mean and sd
-(plus, possibly quantiles and cdf) of the linear predictors
-\eqn{\eta} in
-the model }
+ (plus, possibly quantiles and cdf) of the linear predictors
+ \eqn{\eta} in
+ the model
+ }
 \item{marginals.linear.predictor}{
  If \code{compute=TRUE} in
-\code{control.predictor}, a list containing the posterior
-marginals of the linear predictors \eqn{\eta} in the model. }
+ \code{control.predictor}, a list containing the posterior
+ marginals of the linear predictors \eqn{\eta} in the model.
+ }
 \item{summary.fitted.values}{ A matrix containing the mean and
  sd (plus, possibly quantiles and cdf) of the fitted values
  \eqn{g^{-1}(\eta)} obtained by transforming the linear
@@ -164,14 +179,22 @@ marginals of the linear predictors \eqn{\eta} in the model. }
  is only computed if \code{marginals.fitted.values} is
  computed. Note that if an observation is \code{NA} then the
  identity link is used. You can manually transform a marginal
- using \code{inla.marginal.transform()}.}
+ using \code{inla.marginal.transform()} or set the argument
+ \code{link} in the \code{control.predictor}-list;
+ see \code{?control.predictor}
+ }
 \item{marginals.fitted.values}{
  If \code{compute=TRUE} in
-\code{control.predictor}, a list containing the posterior
-marginals  of the fitted values
-\eqn{g^{-1}(\eta)} obtained by
-transforming the linear predictors by the inverse of the link
-function.
+ \code{control.predictor}, a list containing the posterior
+ marginals  of the fitted values
+ \eqn{g^{-1}(\eta)} obtained by
+ transforming the linear predictors by the inverse of the link
+ function.
+ Note that if an observation is \code{NA} then the
+ identity link is used. You can manually transform a marginal
+ using \code{inla.marginal.transform()} or set the argument
+ \code{link} in the \code{control.predictor}-list;
+ see \code{?control.predictor}
  }
 \item{summary.lincomb}{
 If \code{lincomb != NULL} a list of

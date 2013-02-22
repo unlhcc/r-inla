@@ -1,4 +1,3 @@
-
 /* eval.c
  * 
  * Copyright (C) 2011  Havard Rue
@@ -45,6 +44,7 @@ static const char RCSId[] = "file: " __FILE__ "  " HGVERSION;
 
 #include "GMRFLib/GMRFLib.h"
 #include "inla.h"
+#include "interpol.h"
 #include "eval.h"
 
 /* 
@@ -141,6 +141,20 @@ muFloat_t *inla_eval_AddVariable(const muChar_t * a_szName, void *pUserData)
 
 double inla_eval(char *expression, double *x)
 {
+	if (debug) {
+		printf("call inla_eval with %s\n", expression);
+	}
+
+	if (strncasecmp(expression, "EXPRESSION:", strlen("EXPRESSION:")) == 0) {
+		return (inla_eval_expression(expression + strlen("EXPRESSION:"), x));
+	} else if (strncasecmp(expression, "TABLE:", strlen("TABLE:")) == 0) {
+		return (inla_eval_table(expression + strlen("TABLE:"), x));
+	} else {
+		assert(0 == 1);
+	}
+}
+double inla_eval_expression(char *expression, double *x)
+{
 	double value;
 
 	/*
@@ -203,6 +217,39 @@ double inla_eval(char *expression, double *x)
 		GMRFLib_sprintf(&msg, "Expression[%s] evaluate to INF or NAN [%g] for x=%g\n", expression, value, *x);
 		inla_error_general(msg);
 	}
+
+	return value;
+}
+double inla_eval_table(char *expression, double *xval)
+{
+	int nelm = 0, i;
+	double value;
+	GMRFLib_spline_tp *s;
+	GMRFLib_matrix_tp *M = NULL;
+
+	while(*expression == ' ' || *expression == '\t') {
+		expression++;
+	}
+	if (debug){
+		fprintf(stderr, "OPEN FILE[%s]\n", expression);
+	}
+	M = GMRFLib_read_fmesher_file((const char *) expression, 0, -1);
+	assert(M->nrow >= 4);
+	assert(M->ncol == 2);
+
+	s = inla_spline_create(M->A, M->A + M->nrow, M->nrow);
+	value = inla_spline_eval(*xval, s);
+
+	if (ISNAN(value)) {
+		char *msg;
+		GMRFLib_sprintf(&msg, "table-prior returns NAN. Argument is %g but prior is defined on [%g,%g] only.",
+				*xval, s->xmin, s->xmax);
+		inla_error_general(msg);
+		exit(1);
+	}
+		
+	GMRFLib_matrix_free(M);
+	inla_spline_free(s);
 
 	return value;
 }

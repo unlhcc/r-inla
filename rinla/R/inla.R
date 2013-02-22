@@ -63,13 +63,24 @@
               ##!predictor. If not provided it is set to \code{rep(1, n.data)}.}
               E = NULL,
 
-              ##!\item{offset}{ This can be used to specify an
-              ##!a-priori known component to be included in the linear
-              ##!predictor during fitting.  This should be \code{NULL}
-              ##!or a numeric vector of length either one or equal to
-              ##!the number of cases. One or more \code{offset()}
-              ##!terms can be included in the formula instead or as
-              ##!well, and if both are specified their sum is used.}
+              ##!\item{offset}{This argument is used to specify an
+              ##!a-priori known and fixed component to be included in
+              ##!the linear predictor during fitting.  This should be
+              ##!\code{NULL} or a numeric vector of length either one
+              ##!or equal to the number of cases. One or more
+              ##!\code{offset()} terms can be included in the formula
+              ##!instead or as well, and if both are used, they are
+              ##!combined into a common offset.  If the
+              ##!\code{A}-matrix is used in the linear predictor
+              ##!statement \code{control.predictor}, then the
+              ##!\code{offset} given in this argument is added to
+              ##!\code{eta*}, the linear predictor related to the
+              ##!observations, as \code{eta* = A eta + offset},
+              ##!whereas an offset in the formula is added to
+              ##!\code{eta}, the linear predictor related to the
+              ##!formula, as \code{eta = ... + offset.formula}. So in
+              ##!this case, the offset defined here and in the formula
+              ##!has a different meaning and usage.}
               offset=NULL,
 
               ##!\item{scale}{ Fixed (optional) scale parameters of
@@ -181,8 +192,10 @@
               ##!working files }
               working.directory = inla.getOption("working.directory"),
 
-              ##!\item{silent}{ A boolean variable defining how the
-              ##!\code{inla}-program should be ``silent''.  }
+              ##!\item{silent}{If equal to 1L or TRUE, then the
+              ##!\code{inla}-program would be ``silent''. If equal to
+              ##!2L, then supress also error messages from the
+              ##!\code{inla}-program.}
               silent = inla.getOption("silent"),
 
               ##!\item{debug}{ If \code{TRUE}, then enable some debug
@@ -229,14 +242,16 @@
 
     ##!\item{summary.linear.predictor}{
     ##! A matrix containing the mean and sd
-    ##!(plus, possibly quantiles and cdf) of the linear predictors
-    ##!\eqn{\eta} in
-    ##!the model }
+    ##! (plus, possibly quantiles and cdf) of the linear predictors
+    ##! \eqn{\eta} in
+    ##! the model
+    ##! }
 
     ##!\item{marginals.linear.predictor}{
     ##! If \code{compute=TRUE} in
-    ##!\code{control.predictor}, a list containing the posterior
-    ##!marginals of the linear predictors \eqn{\eta} in the model. }
+    ##! \code{control.predictor}, a list containing the posterior
+    ##! marginals of the linear predictors \eqn{\eta} in the model.
+    ##! }
 
     ##!\item{summary.fitted.values}{ A matrix containing the mean and
     ##! sd (plus, possibly quantiles and cdf) of the fitted values
@@ -245,15 +260,23 @@
     ##! is only computed if \code{marginals.fitted.values} is
     ##! computed. Note that if an observation is \code{NA} then the
     ##! identity link is used. You can manually transform a marginal
-    ##! using \code{inla.marginal.transform()}.}
+    ##! using \code{inla.marginal.transform()} or set the argument
+    ##! \code{link} in the \code{control.predictor}-list;
+    ##! see \code{?control.predictor}
+    ##! }
 
     ##!\item{marginals.fitted.values}{
     ##! If \code{compute=TRUE} in
-    ##!\code{control.predictor}, a list containing the posterior
-    ##!marginals  of the fitted values
-    ##!\eqn{g^{-1}(\eta)} obtained by
-    ##!transforming the linear predictors by the inverse of the link
-    ##!function.
+    ##! \code{control.predictor}, a list containing the posterior
+    ##! marginals  of the fitted values
+    ##! \eqn{g^{-1}(\eta)} obtained by
+    ##! transforming the linear predictors by the inverse of the link
+    ##! function.
+    ##! Note that if an observation is \code{NA} then the
+    ##! identity link is used. You can manually transform a marginal
+    ##! using \code{inla.marginal.transform()} or set the argument
+    ##! \code{link} in the \code{control.predictor}-list;
+    ##! see \code{?control.predictor}
     ##! }
     
     ##!\item{summary.lincomb}{
@@ -362,13 +385,19 @@
     }
 
     ## if data is a list, then it can contain elements that defines a
-    ## model, like f(idx, model = model.objects). These objects crahs
+    ## model, like f(idx, model = model.objects). These objects crash
     ## the formula routines in R since then the data cannot be cast
     ## into a data.frame. to solve this, we remove such objects from
     ## data, and create a second data-object, data.model, which hold
     ## these.
     data.model = NULL
     if (is.list(data) && length(data) > 0L) {
+
+        ## first check if all elements have names
+        if (any(nchar(names(data)) == 0L)) {
+            stop(paste("Elements in the 'data'-list has no name: data[[k]], for k=c(", inla.paste(which(nchar(names(data)) == 0L), sep=","), ")."))
+        }
+            
         i.remove = c()
         for(i in 1:length(data)) {
             ## these are the objects which we want to remove:
@@ -516,7 +545,7 @@
                 "+ f(baseline.hazard, model=\"", cont.hazard$model,"\"",
                 inla.ifelse(!is.null(baseline.hazard.values),
                             inla.paste(c(", values = ", inla.2list(baseline.hazard.values))), ""),
-                ", hyper = ", inla.formula2character(enquote(cont.hazard$hyper))[2],
+                ", hyper = ", enquote(cont.hazard$hyper),
                 ", constr = ", cont.hazard$constr,
                 ", si = ", inla.ifelse(cont.hazard$si, "TRUE", "FALSE"),
                 inla.ifelse(is.null(strata.var), "", paste(", replicate=", strata.var)),
@@ -815,14 +844,32 @@
     
     cont.family = list(list())
     for(i.family in 1:n.family) {
-        cont.family[[i.family]] = inla.set.control.family.default() 
+        cont.family[[i.family]] = inla.set.control.family.default()
+        cont.family[[i.family]]$control.mix = inla.set.control.mix.default()
+
+        ## need to take option 'control.mix' out and process it seperately
+        c.mix = control.family[[i.family]]$control.mix
+        control.family[[i.family]]$control.mix = NULL
+        
         cont.family[[i.family]][names(control.family[[i.family]])] = control.family[[i.family]]
-        cont.family[[i.family]]$hyper = inla.set.hyper(family[i.family], "likelihood",
-                                     cont.family[[i.family]]$hyper, 
-                                     cont.family[[i.family]]$initial, 
-                                     cont.family[[i.family]]$fixed,
-                                     cont.family[[i.family]]$prior,
-                                     cont.family[[i.family]]$param)
+        cont.family[[i.family]]$hyper = inla.set.hyper(
+                                       family[i.family],
+                                       "likelihood",
+                                       cont.family[[i.family]]$hyper, 
+                                       cont.family[[i.family]]$initial, 
+                                       cont.family[[i.family]]$fixed,
+                                       cont.family[[i.family]]$prior,
+                                       cont.family[[i.family]]$param)
+        
+        cont.family[[i.family]]$control.mix[names(c.mix)] = c.mix
+        cont.family[[i.family]]$control.mix$hyper = inla.set.hyper(
+                                       cont.family[[i.family]]$control.mix$model,
+                                       "mix",
+                                       cont.family[[i.family]]$control.mix$hyper, 
+                                       cont.family[[i.family]]$control.mix$initial, 
+                                       cont.family[[i.family]]$control.mix$fixed,
+                                       cont.family[[i.family]]$control.mix$prior,
+                                       cont.family[[i.family]]$control.mix$param)
     }
     
     ## control results
@@ -881,7 +928,8 @@
                          hyperpar = cont.compute$hyperpar, return.marginals = cont.compute$return.marginals,
                          dic = cont.compute$dic, mlik = cont.compute$mlik, cpo = cont.compute$cpo,
                          quantiles = quantiles, smtp = cont.compute$smtp, q = cont.compute$q,
-                         strategy = cont.compute$strategy, graph = cont.compute$graph)
+                         strategy = cont.compute$strategy, graph = cont.compute$graph,
+                         config = cont.compute$config)
 
     ## PREPARE RESPONSE AND FIXED EFFECTS
     if (debug)
@@ -894,7 +942,7 @@
     mf$control.family = NULL; mf$control.data = NULL;
     mf$control.inla = NULL; mf$control.results = NULL; mf$control.fixed = NULL; mf$control.lincomb=NULL;
     mf$control.mode = NULL; mf$control.expert = NULL; mf$inla.call = NULL; mf$num.threads = NULL; mf$keep = NULL;
-    mf$working.directory = NULL; mf$only.hyperparam = NULL; mf$debug = NULL; mf$contrasts = NULL;
+    mf$working.directory = NULL; mf$only.hyperparam = NULL; mf$debug = NULL; mf$contrasts = NULL; 
     mf$inla.arg = NULL; mf$lincomb=NULL;
     mf$.internal = NULL; mf$data = data.same.len
 
@@ -965,37 +1013,36 @@
     indN = seq(0L, NPredictor-1L)
     indM = seq(0L, MPredictor-1L)
     indD = seq(0L, NData-1)
-
+    
     ## this takes care of the offset: `offset' is the argument,
-    ## `offset.formula' is in the formula and `offset.sum' is their
-    ## sum
+    ## `offset.formula' is in the formula. Note that 'offset' goes
+    ## into eta* = A %*% eta + offset, whereas, eta = .... +
+    ## offset.formula
     if (!is.null(gp$offset)) {
         ## there can be more offsets
         offset.formula = 0
-        for(i in 1:length(gp$offset))
+        for(i in 1:length(gp$offset)) {
             offset.formula = offset.formula + as.vector(eval(parse(text=gp$offset[i]), data))
-    } else {
-        offset.formula = NULL
-    }
-
-    if (!is.null(offset.formula) && is.null(offset))
-        offset.sum = offset.formula
-    else if (is.null(offset.formula) && !is.null(offset))
-        offset.sum = offset
-    else if (!is.null(offset.formula) && !is.null(offset.formula)) {
-        if (length(offset.formula) == length(offset)) {
-            offset.sum = offset.formula + offset
-        } else {
-            stop("\n\tThe offset defined in formula and in argument has different length.")
         }
     } else {
-        offset.sum = NULL
+        offset.formula = rep(0, NPredictor)
     }
 
-    ## cat("offset.formula ", offset.formula, "\n")
-    ## cat("offset         ", offset, "\n")
-    ## cat("offset.sum     ", offset.sum, "\n")
-    
+    offset.len = inla.ifelse(MPredictor > 0, MPredictor, NPredictor)
+    offset.formula.len = NPredictor
+    if (is.null(offset)) {
+        offset = 0
+    }
+    if (length(offset) == 1L) {
+        offset = rep(offset,  offset.len)
+    }
+    if (length(offset) != offset.len) {
+        stop(paste("Length of argument 'offset' is wrong:", length(offset), "!=", offset.len))
+    } 
+    if (length(offset.formula) != offset.formula.len) {
+        stop(paste("Length of 'offset(...)' in the formula is wrong:", length(offset.formula), "!=", offset.formula.len))
+    } 
+
     if (length(family) == 1)
         family = rep(family, n.family)
     
@@ -1031,38 +1078,29 @@
 
         ##....then create the new section 
         inla.family.section(file=file.ini, family=family[[i.family]], file.data=files$file.data, file.weights=files$file.weights,
-                          control=cont.family[[i.family]], i.family=i.family)
+                          control=cont.family[[i.family]], i.family=i.family, data.dir = data.dir)
     }
 
-    ##create the PREDICTOR section. if necessary create a file with
-    ##the offset for all likelihood
+    ##create the PREDICTOR section. 
     if (debug) 
         print("prepare predictor section")
 
-    if (!is.null(offset.sum)) {
-        if (any(is.na(offset.sum)))
-            stop("\n\tNo NA values allowed in the offset vector!")
-        if (!is.null(control.predictor$A)) {
-            ## since the offset if currently defined as a correction
-            ## in the likelihood, we need to compute the new offset
-            ## which is A %*% offset.sum, and this is the one we'll
-            ## pass through.
-            stopifnot(length(offset.sum) == NPredictor)
-            os = cbind(c(indM, MPredictor + indN), c(control.predictor$A %*% offset.sum, offset.sum))
-        } else {
-            os = cbind(indN, offset.sum)
-        }
-        file.offset = inla.tempfile(tmpdir=data.dir)
-        if (inla.getOption("internal.binary.mode")) {
-            inla.write.fmesher.file(as.matrix(os), filename=file.offset, debug = debug)
-        } else {
-            file.create(file.offset)
-            write(t(os), ncolumns=2L, file=file.offset, append=FALSE)
-        }
-        file.offset = gsub(data.dir, "$inladatadir", file.offset, fixed=TRUE)
+    stopifnot(!is.null(offset.formula) && !is.null(offset))  ## must be zeros if not used. this makes it easier
+    offset.formula[is.na(offset.formula)] = 0
+    offset[is.na(offset)] = 0
+    if (!is.null(control.predictor$A)) {
+        off = cbind(c(indM, MPredictor + indN), c(as.vector(control.predictor$A %*% offset.formula + offset), offset.formula))
     } else {
-        file.offset = NULL
+        off = cbind(indN, offset + offset.formula)
     }
+    file.offset = inla.tempfile(tmpdir=data.dir)
+    if (inla.getOption("internal.binary.mode")) {
+        inla.write.fmesher.file(as.matrix(off), filename=file.offset, debug = debug)
+    } else {
+        file.create(file.offset)
+        write(t(off), ncolumns=2L, file=file.offset, append=FALSE)
+    }
+    file.offset = gsub(data.dir, "$inladatadir", file.offset, fixed=TRUE)
 
     if (!is.null(cont.predictor$link)) {
         not.na = which(!is.na(cont.predictor$link))
@@ -1157,6 +1195,9 @@
     n.weights=0
     j=0
     extra.fixed=0
+
+    rgeneric = list()
+    nrgeneric = 0
     
     if (nr>0) {
         name.random.dir=c()
@@ -1208,9 +1249,16 @@
         for(r in 1:nr)
             all.terms = c(all.terms, gp$random.spec[[r]]$term)
         
-        for(r in 1:nr) {
+        for (r in 1:nr) {
             n = nrep = ngroup = N = NULL
             
+            if (gp$random.spec[[r]]$model == "rgeneric") {
+                ## collect it and give it an Id
+                nrgeneric = nrgeneric + 1L
+                rgeneric[[nrgeneric]] = gp$random.spec[[r]]$rgeneric
+                gp$random.spec[[r]]$rgeneric$Id = nrgeneric
+            }
+        
             if (gp$random.spec[[r]]$model != "linear" && gp$random.spec[[r]]$model != "z") {
                 ##in this case we have to add a FFIELD section.........
                 count.random = count.random+1
@@ -1335,7 +1383,7 @@
 
                     if (is.numeric(xx) && is.numeric(gp$random.spec[[r]]$values)) {
                         ## case 1: both numeric
-                        
+
                         ## no sort for values here, since they are given as they should be !!!!
                         location[[r]] = unique(gp$random.spec[[r]]$values)
                         cov = match(xx, location[[r]])-1L + inla.ifelse(nrep > 1L || ngroup > 1L,  (replicate-1L)*NG + (group-1)*N, 0L)
@@ -1403,7 +1451,6 @@
                         gp$random.spec[[r]]$id.names = NULL
                         location[[r]] = sort(unique(xx))
                         ## need to store the mapping for later use
-                        gp$random.spec[[r]]$values.order = match(xx, location[[r]])
                     } else {
                         stop(paste("f(", gp$random.spec[[r]]$term, "). Covariate is not of type 'factor', 'character' or 'numeric'.",  sep=""))
                     }
@@ -1435,7 +1482,7 @@
                     inla.write.fmesher.file(as.matrix(as.numeric(location[[r]]), ncol = 1),  filename = file.loc, debug = debug)
                 } else {
                     file.create(file.loc)
-                    write(location[[r]], ncolumns=1, file=file.loc, append=FALSE)
+                    write(as.numeric(location[[r]]), ncolumns=1, file=file.loc, append=FALSE)
                 }
                 file.loc = gsub(data.dir, "$inladatadir", file.loc, fixed=TRUE)
                 
@@ -1629,6 +1676,7 @@
                 ##....while here we have to add a LINEAR section
                 count.linear = count.linear+1
                 xx=rf[, r +1]
+                xx[is.na(xx)] = 0
                 file.linear = inla.tempfile(tmpdir=data.dir)
                 if (inla.getOption("internal.binary.mode")) {
                     inla.write.fmesher.file(as.matrix(cbind(indN, xx)), filename=file.linear, debug=debug)
@@ -1645,7 +1693,7 @@
                         compute=gp$random.spec[[r]]$compute)
                         
                 inla.linear.section(file=file.ini, file.fixed=file.linear, label=gp$random.spec[[r]]$term,
-                                    results.dir=paste("fixed.effect", inla.num(gp$n.fix.revised+count.linear), sep=""),
+                                    results.dir=paste("fixed.effect", inla.num(gp$n.fix+count.linear), sep=""),
                                     control=cont, only.hyperparam=only.hyperparam)
             }
             else if (inla.one.of(gp$random.spec[[r]]$model, "z")) {
@@ -1736,28 +1784,34 @@
     ## ...meaning that if inla.call = "" then just build the files (optionally...)
     if (nchar(inla.call) > 0) {
         if (inla.os("linux") || inla.os("mac")) {
-            ##
-            ## this is a bit weid, but the performance for num.threads
-            ## > 1 is much better for ``small'' problems when run in
-            ## verbose mode. I have no idea why... Here is an example:
-            ## > y=1:10
-            ## > r=inla(y~1, data = data.frame(y))
-            ## > r$cpu
-            ## Pre-processing    Running inla Post-processing           Total 
-            ## 0.08722209930   1.08543705940   0.07941198349   1.25207114220 
-            ## >
-            ## whereas run in verbose mode,  gives
-            ## > r$cpu
-            ## Pre-processing    Running inla Post-processing           Total 
-            ## 0.06223917007   0.01782798767   0.01382899284   0.09389615059 
-            ##
-            ## So the workaround, is to run in verbose mode put to send stdout to /dev/null.
-            ## I don't know if a similar workaround is doable in Windows, but I have to check...
-            ##
-            if (verbose) {
-                echoc = system(paste(shQuote(inla.call), all.args, shQuote(file.ini)))
+            if (nrgeneric > 0L) {
+                if (!inla.require("multicore")) {
+                    stop("Library 'multicore' is required to use the 'rgeneric'-model.")
+                }
+                if (inla.os("mac")) {
+                    ## cannot run in verbose mode
+                    all.args = gsub("-v", "", all.args)
+                    tmp.0 = multicore::parallel(system(paste(shquote(inla.call), all.args, shQuote(file.ini))))
+                } else {
+                    if (verbose) {
+                        tmp.0 = multicore::parallel(system(paste(shquote(inla.call), all.args, shQuote(file.ini))))
+                    } else {
+                        tmp.0 = multicore::parallel(system(paste(shQuote(inla.call), all.args, shQuote(file.ini), " > ", file.log,
+                                inla.ifelse(silent == 2L, " 2>/dev/null", ""))))
+                    }
+                }
+                for (i in 1L:nrgeneric) {
+                    inla.eval(paste("tmp.", i, " = multicore::parallel(inla.rgeneric.loop(rgeneric[[", i, "]], debug=debug))", sep=""))
+                }
+                inla.eval(paste("tmp = multicore::collect(list(tmp.0,", paste("tmp.", 1L:nrgeneric, collapse=",", sep=""), "))"))
+                echoc = tmp[[1L]]
             } else {
-                echoc = system(paste(shQuote(inla.call), all.args, shQuote(file.ini), " > ", file.log))
+                if (verbose) {
+                    echoc = system(paste(shQuote(inla.call), all.args, shQuote(file.ini)))
+                } else {
+                    echoc = system(paste(shQuote(inla.call), all.args, shQuote(file.ini), " > ", file.log,
+                            inla.ifelse(silent == 2L, " 2>/dev/null", "")))
+                }
             }
         } else if (inla.os("windows")) {
             if (!remote) {
@@ -1765,13 +1819,14 @@
                     echoc = try(system2(inla.call, args=paste(all.args, shQuote(file.ini)), stdout="", stderr="", wait=TRUE))
                 } else {
                     bat.file = paste(tempfile(), ".BAT",  sep="")
-                    cat("@ echo off\n",  file=bat.file, append=FALSE)
-                    cat(paste(shQuote(inla.call), all.args, "-v", shQuote(file.ini), ">", shQuote(file.log)), file=bat.file, append=TRUE)
-                    echoc = try(shell(paste("@", shQuote(bat.file)), wait=TRUE), silent=FALSE)
+                    cat("@echo off\n",  file=bat.file, append=FALSE)
+                    cat(paste(shQuote(inla.call), all.args, "-v", shQuote(file.ini), ">", shQuote(file.log),
+                              inla.ifelse(silent == 2L, "2>NUL", "")), file=bat.file, append=TRUE)
+                    echoc = try(shell(paste("@", shQuote(bat.file), sep=""), wait=TRUE), silent=FALSE)
                     unlink(bat.file)
                 }
                 if (echoc != 0L) {
-                    if (!verbose) {
+                    if (!verbose && (silent != 2L)) {
                         warning(" *** The inla()-call return an error; please rerun with option verbose=TRUE.")
                     }
                 }
@@ -1808,7 +1863,6 @@
                     "Total" = my.time.used[4] - my.time.used[1])
 
             ret$cpu.used = cpu.used
-
             ## store all arguments; replacing 'control.xxx' with 'cont.xxx'
             the.args = list()
             for (nm in names(formals(inla))) {
@@ -1861,10 +1915,25 @@
     return (ret)
 }
 
+
 `inla.self.call` = function(object)
 {
     ## call inla() again with the same arguments as stored inside the object,  ie object$.args
     return (do.call("inla",  args = object$.args))
+}
+
+`inla.rerun` = function(object)
+{
+    stopifnot(any(inherits(object, "inla")))
+
+    object$.args$control.mode$result = NULL
+    object$.args$control.mode$restart = TRUE
+    object$.args$control.mode$theta = object$mode$theta
+    object$.args$control.mode$x = object$mode$x
+    ## do not want to change this one
+    ##object$.args$control.mode$fixed = FALSE
+    
+    return (inla.self.call(object))
 }
 `inla.fix.data` = function(data, n, revert = FALSE)
 {

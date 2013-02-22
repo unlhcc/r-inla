@@ -43,20 +43,89 @@ __BEGIN_DECLS
 /* 
  *
  */
+#define SAS_PRIOR_TABLE "sas-prior-table.dat"
     typedef struct {
 	double mu;
 	double stdev;
 	double delta;
 	double epsilon;
-} re_shash_param_tp;
+} re_sas_param_tp;
 
+typedef struct CL {
+	struct CL *next;
+	double x0;
+	double y0;
+	double x1;
+	double y1;
+} CL, *CLP;
+
+typedef struct {
+	int nc;
+	int *ns;					       /* number of segments */
+	int *cyclic;
+	double *length;
+	double level;
+	double **x;
+	double **y;
+} re_contour_tp;
+
+typedef struct {
+	int nx;
+	int ny;
+	int nz;
+
+	double *skew;					       /* x */
+	double *kurt;					       /* y */
+	double *level;					       /* various z's */
+	double *length;	
+	double *point;	
+	double *logjac;	
+} re_sas_prior_tp;
+
+
+
+
+
+CLP *contourLines1(double *x, int nx, double *y, int ny, double *z, double zc);
+CLP ctr_newseg(double x0, double y0, double x1, double y1, CLP prev);
+CLP ctr_segupdate(double xend, double yend, int dir, int tail, CLP seglist, CLP * seg);
+double *re_sas_evaluate_log_prior(double skew, double kurt, double *param);
+double bessel_Knu(double alpha, double x);
+double re_intrinsic_discrepancy_distance(double skew, double kurt);
+double re_intrinsic_discrepancy_distance_map(double distance);
+double re_point_on_contour(re_contour_tp * c, double skew, double kurt);
+double re_sas_log_prior(double *val, double *param);
+double re_valid_kurt(double skew);
+double re_valid_skew(double kurt);
+int ctr_intersect(double z0, double z1, double zc, double *f);
+int ctr_segdir(double xend, double yend, double *x, double *y, int *i, int *j, int nx, int ny);
+int re_contour_get_direction(double *x, double *y, int nseg);
+int re_dnorm(double *logdens, double *x, int n);
+int re_dsas(double *logdens, double *x, int n, double skew, double kurt);
+int re_dsas_intern(double *logdens, double *x, int n, double mu, double sigma, double delta, double epsilon);
+int re_find_in_sas_prior_table(double *result, double skew, double kurt);
+int re_find_in_table_general(double value, double *x, int nx);
+int re_free_contourLines(re_contour_tp * c);
+int re_init(double *param);
+int re_join_contourLines(re_contour_tp * c);
+int re_print_contourLines(FILE * fp, re_contour_tp * c);
+int re_prior_check(double *param);
+int re_read_sas_prior_table(double *param);
+int re_sas_df(const gsl_vector * x, void *data, gsl_matrix * J);
+int re_sas_f(const gsl_vector * x, void *data, gsl_vector * f);
+int re_sas_fdf(const gsl_vector * x, void *data, gsl_vector * f, gsl_matrix * J);
+int re_sas_fit_parameters(re_sas_param_tp * param, double *mean, double *prec, double *skew, double *kurt);
+int re_sas_prior_table_core(int read_only, int add_logjac, int debug, double *param);
+int re_sas_skew_kurt(double *skew, double *kurt, double epsilon, double delta);
+int re_sas_table_add_logjac(int debug);
+int re_sas_table_check(double *param);
+int re_sas_table_create(double *param);
+int re_sas_table_init(double *param);
 int re_valid_skew_kurt(double *dist, double skew, double kurt);
-int re_shash_skew_kurt(double *skew, double *kurt, double epsilon, double delta);
-int re_shash_fit_parameters(re_shash_param_tp * param, double *mean, double *prec, double *skew, double *kurt);
-
-int re_shash_f(const gsl_vector * x, void *data, gsl_vector * f);
-int re_shash_df(const gsl_vector * x, void *data, gsl_matrix * J);
-int re_shash_fdf(const gsl_vector * x, void *data, gsl_vector * f, gsl_matrix * J);
+re_contour_tp *contourLines(double *x, int nx, double *y, int ny, double *z, double zc);
+re_contour_tp *contourLines2(double *x, int nx, double *y, int ny, double zc, CLP * segmentDB);
+void K_bessel(double *x, double *alpha, long *nb, long *ize, double *bk, long *ncalc);
+void ctr_swapseg(CLP seg);
 
 __END_DECLS
 #endif

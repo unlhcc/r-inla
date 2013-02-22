@@ -127,7 +127,95 @@ inla.internal.experimental.mode = FALSE
     } else {
         lpm = NA
     }
-    
+
+    fnm = paste(d, "/config/configs.dat", sep="")
+    if (file.exists(fnm)) {
+        fp = file(fnm, "rb")
+        iarr = readBin(fp, integer(), 3)
+        configs = list(
+                n = iarr[1], 
+                nz = iarr[2], 
+                ntheta = iarr[3])
+        configs.i = readBin(fp, integer(), configs$nz) ## 0-based
+        configs.j = readBin(fp, integer(), configs$nz) ## 0-based
+        configs$nconfig = readBin(fp, integer(), 1)
+
+        nc = readBin(fp, integer(), 1)
+        if (nc > 0) {
+            A = readBin(fp, numeric(), configs$n * nc)
+            e = readBin(fp, numeric(), nc)
+            configs$constr = list(
+                    nc = nc,
+                    A = matrix(A, nc, configs$n),
+                    e = e)
+        } else {
+            configs$constr = NULL
+        }
+
+        theta.tag = readLines(paste(d, "/config/theta-tag.dat", sep=""))
+        configs$contents = list(
+                tag = readLines(paste(d, "/config/tag.dat", sep="")),
+                start = as.integer(readLines(paste(d, "/config/start.dat", sep=""))) + 1L,
+                length = as.integer(readLines(paste(d, "/config/n.dat", sep=""))))
+
+        if (configs$nconfig > 0L) {
+            configs$config[[configs$nconfig]] = list()
+            for(k in 1L:configs$nconfig) {
+                log.post = readBin(fp, numeric(), 1)
+                if (configs$ntheta > 0L) {
+                    theta = readBin(fp, numeric(), configs$ntheta)
+                    names(theta) = theta.tag
+                } else {
+                    theta = NULL
+                }
+                mean = readBin(fp, numeric(), configs$n)
+                Q = readBin(fp, numeric(), configs$nz)
+                Qinv = readBin(fp, numeric(), configs$nz)
+                dif = which(configs$i != configs$j)
+                if (length(dif) > 0L) {
+                    iadd = configs.j[dif] ## yes, its the transpose part
+                    jadd = configs.i[dif] ## yes, its the transpose part
+                    Qadd = Q[dif]
+                    Qinvadd = Qinv[dif]
+                } else {
+                    iadd = c()
+                    jadd = c()
+                    Qadd = c()
+                    Qinvadd = c()
+                }
+                configs$config[[k]] = list(
+                                      theta = theta, 
+                                      log.posterior = log.post, 
+                                      mean = mean,
+                                      Q = sparseMatrix(
+                                              i = c(configs.i, iadd),
+                                              j = c(configs.j, jadd),
+                                              x = c(Q, Qadd),
+                                              dims = c(configs$n, configs$n),
+                                              index1 = FALSE,
+                                              giveCsparse = TRUE), 
+                                      Qinv = sparseMatrix(
+                                              i = c(configs.i, iadd),
+                                              j = c(configs.j, jadd),
+                                              x = c(Qinv, Qinvadd),
+                                              dims = c(configs$n, configs$n),
+                                              index1 = FALSE,
+                                              giveCsparse = TRUE))
+            }
+
+            ## rescale the log.posteriors
+            configs$max.log.posterior = max(sapply(configs$config, function(x) x$log.posterior))
+            for(k in 1L:configs$nconfig) {
+                configs$config[[k]]$log.posterior = configs$config[[k]]$log.posterior - configs$max.log.posterior
+            }
+        } else {
+            configs$config = NULL
+        }
+        close(fp)
+    } else {
+        configs = NULL
+    }
+
     if (debug)
         print(paste("collect misc from", d, "...done"))
 
@@ -136,7 +224,8 @@ inla.internal.experimental.mode = FALSE
                  reordering = r, theta.tags = tags, log.posterior.mode = lpm, 
                  stdev.corr.negative = stdev.corr.negative, stdev.corr.positive = stdev.corr.positive,
                  to.theta = theta.to, from.theta = theta.from, mode.status = mode.status, 
-                 lincomb.derived.correlation.matrix = lincomb.derived.correlation.matrix))
+                 lincomb.derived.correlation.matrix = lincomb.derived.correlation.matrix,
+                 configs = configs))
 }
 
 `inla.collect.logfile` = function(file.log = NULL, debug = FALSE)
@@ -447,25 +536,6 @@ inla.internal.experimental.mode = FALSE
         size.lincomb = NULL
     }
 
-    ## ensure that the results are sorted wrt the name
-    if (!is.null(summary.lincomb)) {
-        o = order(rownames(summary.lincomb[[1L]]))
-        summary.lincomb[[1L]] = summary.lincomb[[1L]][o, ]
-    }
-    if (!is.null(marginals.lincomb)) {
-        if (length(marginals.lincomb) > 0L) {
-            nm = names(marginals.lincomb[[1L]])
-            o = order(nm)
-            new.marginals.lincomb = marginals.lincomb
-            for(i in 1:length(nm)) {
-                new.marginals.lincomb[[1L]][[i]] = marginals.lincomb[[1L]][[o[i]]]
-            }
-            names(new.marginals.lincomb[[1L]]) = nm[o]
-            marginals.lincomb = new.marginals.lincomb
-            rm(new.marginals.lincomb)
-        }
-    }
-    
     if (derived) {
         res = list(summary.lincomb.derived = summary.lincomb[[1L]],
                 marginals.lincomb.derived = inla.ifelse(length(marginals.lincomb) > 0L, marginals.lincomb[[1L]], NULL), 
@@ -956,9 +1026,9 @@ inla.internal.experimental.mode = FALSE
             colnames(dd) = inla.namefix(col.nam)
             if (A) {
                 rownames(dd) = c(inla.namefix(paste("fitted.Apredictor.", inla.num(1L:nA), sep="")),
-                                inla.namefix(paste("fitted.predictor.", inla.num(1:n), sep="")))
+                                inla.namefix(paste("fitted.predictor.", inla.num(1L:n), sep="")))
             } else {
-                rownames(dd) = inla.namefix(paste("fitted.predictor.", inla.num(1L:length(rr)), sep=""))
+                rownames(dd) = inla.namefix(paste("fitted.predictor.", inla.num(1L:n), sep=""))
             }
             summary.fitted.values = as.data.frame(dd)
 

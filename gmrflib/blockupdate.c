@@ -1282,10 +1282,8 @@ int GMRFLib_2order_approx(double *a, double *b, double *c, double d, double x0, 
 		xx[2] = x0 + step;
 
 		loglFunc(f, xx, 3, indx, x_vec, loglFunc_arg);
-
 		df = 0.5 * (f[2] - f[0]) / step;
 		ddf = (f[2] - 2.0 * f[1] + f[0]) / (step * step);
-
 		if (a) {
 			*a = d * (f[1] - df * x0 + 0.5 * ddf * SQR(x0));
 		}

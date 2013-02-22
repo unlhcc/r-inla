@@ -305,7 +305,7 @@ int GMRFLib_tabulate_Qfunc_from_file(GMRFLib_tabulate_Qfunc_tp ** tabulate_Qfunc
 	 * only values i<=j are required. duplicated values are added up.
 	 */
 
-	int i, j, ii, jj, count, k, ntriples, err, debug = 0, imin = INT_MAX, jmin = INT_MAX, off, sparse = 0;
+	int i, j, ii, jj, count, k, ntriples, err, debug = 0, imin = INT_MAX, jmin = INT_MAX, off = 0, sparse = 0;
 	double value, *prev;
 
 	GMRFLib_tabulate_Qfunc_arg_tp *arg = NULL;
@@ -357,9 +357,6 @@ int GMRFLib_tabulate_Qfunc_from_file(GMRFLib_tabulate_Qfunc_tp ** tabulate_Qfunc
 			}
 		}
 
-		GMRFLib_ASSERT(((imin == 0 || imin == 1) && (jmin == 0 || jmin == 1)), GMRFLib_ESNH);
-		off = (IMIN(imin, jmin) == 1 ? 1 : 0);
-
 		if (sparse) {
 			ntriples = M->elems;
 			for (k = 0; k < M->elems; k++) {
@@ -369,7 +366,7 @@ int GMRFLib_tabulate_Qfunc_from_file(GMRFLib_tabulate_Qfunc_tp ** tabulate_Qfunc
 				if (debug) {
 					printf("read (i,j,val) = (%d,%d,%g)\n", i, j, value);
 				}
-				GMRFLib_ged_add(ged, i - off, j - off);
+				GMRFLib_ged_add(ged, i, j);
 			}
 		} else {
 			ntriples = M->nrow;
@@ -380,7 +377,7 @@ int GMRFLib_tabulate_Qfunc_from_file(GMRFLib_tabulate_Qfunc_tp ** tabulate_Qfunc
 				if (debug) {
 					printf("read (i,j,val) = (%d,%d,%g)\n", i, j, value);
 				}
-				GMRFLib_ged_add(ged, i - off, j - off);
+				GMRFLib_ged_add(ged, i, j);
 			}
 		}
 		/*

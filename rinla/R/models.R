@@ -44,7 +44,7 @@
                       pdf = "indep"
                       ),
 
-              me = list(
+              mec = list(
                       hyper = list(
                               theta1 = list(
                                       name = "beta",
@@ -57,7 +57,7 @@
                                       from.theta = function(x) x
                                       ), 
                               theta2 = list(
-                                      name = "prec.obs",
+                                      name = "prec.u",
                                       short.name = "prec",
                                       prior = "loggamma",
                                       param = c(1, 0.0001),
@@ -96,7 +96,56 @@
                       n.required = FALSE,
                       set.default.values = FALSE,
                       status = "experimental", 
-                      pdf = "me"
+                      pdf = "mec"
+                      ),
+
+              meb = list(
+                      hyper = list(
+                              theta1 = list(
+                                      name = "beta",
+                                      short.name = "b",
+                                      prior = "gaussian",
+                                      param = c(1, 0.001),
+                                      initial = 1,
+                                      fixed = FALSE,
+                                      to.theta = function(x) x,
+                                      from.theta = function(x) x
+                                      ), 
+                              theta2 = list(
+                                      name = "prec.u",
+                                      short.name = "prec",
+                                      prior = "loggamma",
+                                      param = c(1, 0.0001),
+                                      initial = log(1000),
+                                      fixed = FALSE,
+                                      to.theta = function(x) log(x),
+                                      from.theta = function(x) exp(x)
+                                      )
+                              ),
+                      constr = FALSE,
+                      nrow.ncol = FALSE,
+                      augmented = FALSE,
+                      aug.factor = 1L,
+                      aug.constr = NULL,
+                      n.div.by = NULL,
+                      n.required = FALSE,
+                      set.default.values = FALSE,
+                      status = "experimental", 
+                      pdf = "meb"
+                      ),
+
+              rgeneric = list(
+                      hyper = list(), 
+                      constr = FALSE,
+                      nrow.ncol = FALSE,
+                      augmented = FALSE,
+                      aug.factor = 1L,
+                      aug.constr = NULL,
+                      n.div.by = NULL,
+                      n.required = FALSE,
+                      set.default.values = FALSE,
+                      status = "experimental", 
+                      pdf = "rgeneric"
                       ),
 
               rw1 = list(
@@ -268,8 +317,8 @@
                               theta2 = list(
                                       name = "log spatial precision",
                                       short.name = "prec.spatial",
-                                      prior = "normal",
-                                      param = c(0, 0.00005),
+                                      prior = "loggamma",
+                                      param = c(1, 0.0005),
                                       initial = 4,
                                       fixed = FALSE,
                                       to.theta = function(x) log(x),
@@ -353,6 +402,132 @@
                       n.required = FALSE,
                       set.default.values = FALSE,
                       pdf = "ar1"
+                      ),
+
+              ar = list(
+                      ## to many parameters here, but ...
+                      hyper = list(
+                              theta1 = list(
+                                      name = "log precision",
+                                      short.name = "prec",
+                                      initial = 4,
+                                      fixed = FALSE,
+                                      prior = "loggamma",
+                                      param = c(1, 0.00005),
+                                      to.theta = function(x) log(x),
+                                      from.theta = function(x) exp(x)
+                                      ),
+                              theta2 = list(
+                                      name = "pacf1",
+                                      short.name = "pacf1",
+                                      initial = 2,
+                                      fixed = FALSE,
+                                      prior = "mvnorm",
+                                      param = c(0, 0.15),  ## same as for AR1
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta3 = list(
+                                      name = "pacf2",
+                                      short.name = "pacf2",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta4 = list(
+                                      name = "pacf3",
+                                      short.name = "pacf3",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta5 = list(
+                                      name = "pacf4",
+                                      short.name = "pacf4",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta6 = list(
+                                      name = "pacf5",
+                                      short.name = "pacf5",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta7 = list(
+                                      name = "pacf6",
+                                      short.name = "pacf6",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta8 = list(
+                                      name = "pacf7",
+                                      short.name = "pacf7",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta9 = list(
+                                      name = "pacf8",
+                                      short.name = "pacf8",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta10 = list(
+                                      name = "pacf9",
+                                      short.name = "pacf9",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta11 = list(
+                                      name = "pacf10",
+                                      short.name = "pacf10",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      )
+                              ),
+                      constr = FALSE,
+                      nrow.ncol = FALSE,
+                      augmented = FALSE,
+                      aug.factor = 1L,
+                      aug.constr = NULL,
+                      n.div.by = NULL,
+                      n.required = FALSE,
+                      set.default.values = FALSE,
+                      status = "experimental", 
+                      pdf = "ar"
                       ),
 
               ou = list(
@@ -2175,66 +2350,219 @@
     return
     list(group =
          list(
-              exchangeable = list(
-                      hyper = list(
-                              theta = list(
-                                      name = "logit correlation",
-                                      short.name = "rho",
-                                      initial = 1,
-                                      fixed = FALSE,
-                                      prior = "normal",
-                                      param = c(0, 0.2),
-                                      to.theta = function(x, ngroup) log((1+x*(ngroup-1))/(1-x)),
-                                      from.theta = function(x, ngroup) (exp(x)-1)/(exp(x) + ngroup -1)
-                                      )
-                              )
-                      ),
+             exchangeable = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "logit correlation",
+                                     short.name = "rho",
+                                     initial = 1,
+                                     fixed = FALSE,
+                                     prior = "normal",
+                                     param = c(0, 0.2),
+                                     to.theta = function(x, REPLACE.ME.ngroup) log((1+x*(ngroup-1))/(1-x)),
+                                     from.theta = function(x, REPLACE.ME.ngroup) (exp(x)-1)/(exp(x) + ngroup -1)
+                                     )
+                             )
+                     ),
 
-              ar1 = list(
+             ar1 = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "logit correlation",
+                                     short.name = "rho",
+                                     initial = 2,
+                                     fixed = FALSE,
+                                     prior = "normal",
+                                     param = c(0, 0.15),
+                                     to.theta = function(x) log((1+x)/(1-x)),
+                                     from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                     )
+                             )
+                     ),
+             
+              ar = list(
+                      ## to many parameters here, but ...
                       hyper = list(
-                              theta = list(
-                                      name = "logit correlation",
-                                      short.name = "rho",
+                              theta1 = list(
+                                      name = "log precision",
+                                      short.name = "prec",
+                                      initial = 0,
+                                      fixed = TRUE,
+                                      prior = "loggamma",
+                                      param = c(1, 0.00005),
+                                      to.theta = function(x) log(x),
+                                      from.theta = function(x) exp(x)
+                                      ),
+                              theta2 = list(
+                                      name = "pacf1",
+                                      short.name = "pacf1",
                                       initial = 2,
                                       fixed = FALSE,
-                                      prior = "normal",
-                                      param = c(0, 0.15),
+                                      prior = "mvnorm",
+                                      param = c(0, 0.15),  ## same as for AR1
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta3 = list(
+                                      name = "pacf2",
+                                      short.name = "pacf2",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta4 = list(
+                                      name = "pacf3",
+                                      short.name = "pacf3",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta5 = list(
+                                      name = "pacf4",
+                                      short.name = "pacf4",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta6 = list(
+                                      name = "pacf5",
+                                      short.name = "pacf5",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta7 = list(
+                                      name = "pacf6",
+                                      short.name = "pacf6",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta8 = list(
+                                      name = "pacf7",
+                                      short.name = "pacf7",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta9 = list(
+                                      name = "pacf8",
+                                      short.name = "pacf8",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta10 = list(
+                                      name = "pacf9",
+                                      short.name = "pacf9",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
+                                      to.theta = function(x) log((1+x)/(1-x)),
+                                      from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                                      ),
+                              theta11 = list(
+                                      name = "pacf10",
+                                      short.name = "pacf10",
+                                      initial = 0,
+                                      fixed = FALSE,
+                                      prior = "none",
+                                      param = numeric(0),
                                       to.theta = function(x) log((1+x)/(1-x)),
                                       from.theta = function(x) 2*exp(x)/(1+exp(x))-1
                                       )
                               )
                       ),
 
-              rw1 = list(
-                      hyper = list(
-                              theta = list(
-                                      name = "log precision",
-                                      short.name = "prec",
-                                      prior = "loggamma",
-                                      param = c(1, 0.00005),
-                                      initial = 4,
-                                      fixed = FALSE,
-                                      to.theta = function(x) log(x),
-                                      from.theta = function(x) exp(x)
-                                      )
-                              )
-                      ), 
+             rw1 = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "log precision",
+                                     short.name = "prec",
+                                     prior = "loggamma",
+                                     param = c(1, 0.00005),
+                                     initial = 0,
+                                     fixed = TRUE,
+                                     to.theta = function(x) log(x),
+                                     from.theta = function(x) exp(x)
+                                     )
+                             )
+                     ), 
 
-              rw2 = list(
-                      hyper = list(
-                              theta = list(
-                                      name = "log precision",
-                                      short.name = "prec",
-                                      prior = "loggamma",
-                                      param = c(1, 0.00005),
-                                      initial = 4,
-                                      fixed = FALSE,
-                                      to.theta = function(x) log(x),
-                                      from.theta = function(x) exp(x)
-                                      )
-                              )
-                      )
-              )
+             rw2 = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "log precision",
+                                     short.name = "prec",
+                                     prior = "loggamma",
+                                     param = c(1, 0.00005),
+                                     initial = 0,
+                                     fixed = TRUE,
+                                     to.theta = function(x) log(x),
+                                     from.theta = function(x) exp(x)
+                                     )
+                             )
+                     ), 
+             besag = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "log precision",
+                                     short.name = "prec",
+                                     prior = "loggamma",
+                                     param = c(1, 0.00005),
+                                     initial = 0,
+                                     fixed = TRUE,
+                                     to.theta = function(x) log(x),
+                                     from.theta = function(x) exp(x)
+                                     )
+                             )
+                     )
+             )
+         )
+}
+
+`inla.models.section.mix` = function()
+{
+    return
+    list(mix =
+         list(
+             gaussian = list(
+                     hyper = list(
+                             theta = list(
+                                     name = "log precision",
+                                     short.name = "prec",
+                                     prior = "loggamma",
+                                     param = c(1, 0.01),
+                                     initial = 0,
+                                     fixed = TRUE,
+                                     to.theta = function(x) log(x),
+                                     from.theta = function(x) exp(x)
+                                     )
+                             )
+                     )
+             )
          )
 }
 
@@ -2349,7 +2677,7 @@
                               ),
                       survival = FALSE,
                       discrete = TRUE,
-                      link = c("default", "logit", "probit", "cloglog", "log"),
+                      link = c("default", "logit", "probit", "cloglog", "log", "h"),
                       pdf = "binomial"
                       ),
 
@@ -2403,6 +2731,25 @@
                       status = "experimental"
                       ),
 
+              gamma = list(
+                      hyper = list(
+                              theta = list(
+                                      name = "precision parameter",
+                                      short.name = "prec",
+                                      initial = log(100),
+                                      fixed = FALSE,
+                                      prior = "loggamma",
+                                      param = c(1, 0.01),
+                                      to.theta = function(x) log(x), 
+                                      from.theta = function(x) exp(x)
+                                      )
+                              ),
+                      survival = FALSE,
+                      discrete = FALSE,
+                      link = c("default", "log"),
+                      pdf = "gamma"
+                      ),
+
               beta = list(
                       hyper = list(
                               theta = list(
@@ -2446,7 +2793,8 @@
                               ),
                       survival = FALSE,
                       discrete = TRUE,
-                      link = c("default", "logit", "probit", "cloglog", "log"),
+                      link = c("default", "logit", "probit", "cloglog"),
+                      status = "experimental", 
                       pdf = "cbinomial"
                       ),
 
@@ -2486,6 +2834,26 @@
                       discrete = FALSE,
                       link = c("default", "identity", "logit"),
                       pdf = "gaussian"
+                      ),
+
+              gaussianwindow = list(
+                      hyper = list(
+                              theta = list(
+                                      name = "log precision",
+                                      short.name = "prec",
+                                      initial = 0,
+                                      fixed = TRUE,
+                                      prior = "loggamma",
+                                      param = c(10, 1),
+                                      to.theta = function(x) log(x),
+                                      from.theta = function(x) exp(x)
+                                      )
+                              ),
+                      status = "experimental", 
+                      survival = FALSE,
+                      discrete = FALSE,
+                      link = c("default", "identity"),
+                      pdf = "gaussianwindow"
                       ),
 
               normal = list(
@@ -2615,7 +2983,7 @@
                                       initial = 0,
                                       fixed = FALSE,
                                       prior = "loggamma",
-                                      param = c(1, 0.01),
+                                      param = c(1, 0.00005),
                                       to.theta = function(x) log(x),
                                       from.theta = function(x) exp(x)
                                       ),
@@ -2624,8 +2992,8 @@
                                       short.name = "skew",
                                       initial = 0,
                                       fixed = FALSE,
-                                      prior = "normal",
-                                      param = c(0, 25),
+                                      prior = "sasprior", 
+                                      param = 10,
                                       to.theta = function(x) x,
                                       from.theta = function(x) x
                                       ),
@@ -2634,8 +3002,8 @@
                                       short.name = "kurt",
                                       initial = 3,
                                       fixed = FALSE,
-                                      prior = "normal",
-                                      param = c(3, 100),
+                                      prior = "none",
+                                      param = numeric(0), 
                                       to.theta = function(x) (x),
                                       from.theta = function(x) (x)
                                       )
@@ -2755,7 +3123,7 @@
                                       initial = 0,
                                       fixed = FALSE,
                                       prior = "gaussian",
-                                      param = c(0, 6.25),
+                                      param = c(0, 25),
                                       to.theta = function(x) x,
                                       from.theta = function(x) x
                                       )
@@ -2763,6 +3131,7 @@
                       survival = FALSE,
                       discrete = FALSE,
                       link = c("default", "identity"),
+                      status = "experimental", 
                       pdf = "gev"
                       ),
 
@@ -3210,7 +3579,7 @@
                               theta1 = list(
                                       name = "log precision",
                                       short.name = "prec",
-                                      initial = 3,
+                                      initial = 0,
                                       fixed = FALSE,
                                       prior = "loggamma",
                                       param = c(1, 0.00005),
@@ -3220,7 +3589,7 @@
                               theta2 = list(
                                       name = "log degrees of freedom",
                                       short.name = "dof",
-                                      initial = 0,
+                                      initial = 5,
                                       fixed = FALSE,
                                       prior = "loggamma",
                                       param = c(1, 0.5),
@@ -3450,9 +3819,19 @@
                       pdf = "jeffreystdf"
                       ),
 
+              sasprior = list(
+                      nparameters = 1L,
+                      pdf = "sasprior"
+                      ), 
+
               "expression:" = list(
                   nparameters = -1L,
                   pdf = "expression"
+                  ), 
+
+              "table:" = list(
+                  nparameters = -1L,
+                  pdf = "table"
                   )
               )
          )
@@ -3504,10 +3883,11 @@
         return (get("inla.models", envir = envir))
 
     } else {
-        ## have to split it,  as option keep.source has an upper limit; what a shame...
+        ## have to split it, as option keep.source has an upper limit...
         models = c(
                 inla.models.section.latent(),
                 inla.models.section.group(),
+                inla.models.section.mix(),
                 inla.models.section.predictor(),
                 inla.models.section.hazard(),
                 inla.models.section.likelihood(),

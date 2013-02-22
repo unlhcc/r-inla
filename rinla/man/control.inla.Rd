@@ -11,6 +11,7 @@ inla(formula, ..., control.inla=list( <arg>=<value>[, <arg>=<value>]))
 \item{strategy}{  The strategy to use for the approximations; one of 'gaussian', 'simplified.laplace' (default) or 'laplace'}
 \item{int.strategy}{  The integration strategy to use; one of 'ccd' (default), 'grid' or 'eb' (empirical bayes)}
 \item{interpolator}{  The interpolator used to compute the marginals for the hyperparameters. One of 'auto', 'nearest', 'quadratic', 'weighted.distance', 'ccd', 'ccdintegrate', 'gridsum', 'gaussian'. Default is 'auto'.}
+\item{fast}{  Fast mode? If on, then replace conditional modes in the Laplace approximation with conditional expectation (default TRUE)}
 \item{linear.correction}{  Default TRUE for the 'strategy = laplace' option.}
 \item{h}{  The step-length for the gradient calculations for the hyperparameters. Default 0.01.}
 \item{dz}{  The step-length in the standarised scale for the integration of the hyperparameters. Default 1.0.}
@@ -27,7 +28,7 @@ inla(formula, ..., control.inla=list( <arg>=<value>[, <arg>=<value>]))
 \item{restart}{  To improve the optimisation, the optimiser is restarted at the found optimum 'restart' number of times.}
 \item{optimiser}{  The optimiser to use; one of 'gsl', 'domin' or 'default'.}
 \item{verbose}{  A boolean variable; run in verbose mode? (Default FALSE)}
-\item{reordering}{  Type of reordering to use. (EXPERT OPTION; one of "AUTO", "DEFAULT", "IDENTITY", "BAND", "METIS", "GENMMD", "AMD", "MD", "MMD", "AMDBAR", "AMDC", "AMDBARC", or the output from \code{inla.qreordering}.)}
+\item{reordering}{  Type of reordering to use. (EXPERT OPTION; one of "AUTO", "DEFAULT", "IDENTITY", "REVERSEIDENTITY", "BAND", "METIS", "GENMMD", "AMD", "MD", "MMD", "AMDBAR", "AMDC", "AMDBARC", or the output from \code{inla.qreordering}.)}
 \item{cpo.diff}{  Threshold to define when the cpo-calculations are inaccurate. (EXPERT OPTION.)}
 \item{npoints}{  Number of points to use in the 'stratey=laplace' approximation}
 \item{cutoff}{  The cutoff used in the 'stratey=laplace' approximation. (Smaller value is more accurate and more slow.)}
@@ -50,6 +51,6 @@ inla(formula, ..., control.inla=list( <arg>=<value>[, <arg>=<value>]))
 \item{stupid.search.factor}{  Factor (>=1) to increase the step-length with after each new interation.}
 }
 \seealso{
-\code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.family}}, \code{\link{control.data}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
+\code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.mix}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.family}}, \code{\link{control.data}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
 \code{\link{inla}}
 }

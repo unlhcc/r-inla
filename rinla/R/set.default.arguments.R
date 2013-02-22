@@ -19,23 +19,61 @@
 {
     ##:NAME: control.group
     list(
-         ##:ARGUMENT: model Group model (one of 'exchangable', 'ar1',  'rw1' or 'rw2')
-         model = "exchangeable",
+        ##:ARGUMENT: model Group model (one of 'exchangable', 'ar1',  'ar', 'rw1', 'rw2' or 'besag')
+        model = "exchangeable",
+        
+        ##:ARGUMENT: order Defines the \code{order} of the model: for model \code{ar} this defines the order p, in AR(p). Not used for other models at the time being.
+        order = NULL, 
 
-         ##:ARGUMENT: hyper Definition of the hyperparameter(s)
-         hyper = NULL,
+        ##:ARGUMENT: cyclic Make the group model cyclic? (Only applies to models 'ar1',  'rw1' and 'rw2')
+        cyclic = FALSE,
+         
+        ##:ARGUMENT: graph The graph spesification (Only applies to model 'besag')
+        graph = NULL, 
 
-         ##:ARGUMENT: initial (OBSOLETE!) The initial value for the group correlation or precision in the internal scale.
-         initial = NULL,
+        ##:ARGUMENT: hyper Definition of the hyperparameter(s)
+        hyper = NULL,
 
-         ##:ARGUMENT: fixed (OBSOLETE!) A boolean variable if the group correction or precision is assumed to be fixed or random.
-         fixed = NULL,
+        ##:ARGUMENT: initial (OBSOLETE!) The initial value for the group correlation or precision in the internal scale.
+        initial = NULL,
 
-         ##:ARGUMENT: prior (OBSOLETE!) The name of the prior distribution for the group correlation or precision in the internal scale
-         prior = NULL,
+        ##:ARGUMENT: fixed (OBSOLETE!) A boolean variable if the group correction or precision is assumed to be fixed or random.
+        fixed = NULL,
 
-         ##:ARGUMENT: param (OBSOLETE!) Prior parameters
-         param = NULL)
+        ##:ARGUMENT: prior (OBSOLETE!) The name of the prior distribution for the group correlation or precision in the internal scale
+        prior = NULL,
+
+        ##:ARGUMENT: param (OBSOLETE!) Prior parameters
+        param = NULL)
+
+    ##:SEEALSO: inla
+}
+
+`inla.set.control.mix.default` =
+    function()
+{
+    ##:NAME: control.mix
+    list(
+        ##:ARGUMENT: use Integrate the likelihood with a random-effect added to the linear predictor? Default FALSE
+        use = FALSE,
+
+        ##:ARGUMENT: model The model for the random effect. Currently, only \code{model='gaussian'} is implemented
+        model = "gaussian",
+
+        ##:ARGUMENT: hyper Definition of the hyperparameter(s) for the random effect model chosen
+        hyper = NULL,
+
+        ##:ARGUMENT: initial (OBSOLETE!) The initial value(s) for the hyperparameter(s)
+        initial = NULL,
+
+        ##:ARGUMENT: fixed (OBSOLETE!) A boolean variable if hyperparmater(s) is/are fixed or random
+        fixed = NULL,
+
+        ##:ARGUMENT: prior (OBSOLETE!) The name of the prior distribution(s) for the hyperparmater(s)
+        prior = NULL,
+
+        ##:ARGUMENT: param (OBSOLETE!) The parameters for the prior distribution(s) for the hyperparmater(s)
+        param = NULL)
 
     ##:SEEALSO: inla
 }
@@ -87,6 +125,9 @@
          ##:ARGUMENT: q A boolean variable if binary images of the precision matrix, the reordered precision matrix and the Cholesky triangle should be generated. (Default FALSE.)
          q=FALSE,
 
+         ##:ARGUMENT: config A boolean variable if the internal GMRF approximations be stored. (Default FALSE. EXPERIMENTAL)
+         config=FALSE,
+
          ##:ARGUMENT: smtp The sparse-matrix solver, one of 'smtp' (default) or 'band'
          smtp = NULL,
 
@@ -100,42 +141,45 @@
 {
     ##:NAME: control.family
     list(
-         ##:ARGUMENT: hyper Definition of the hyperparameters
-         hyper = NULL,
+        ##:ARGUMENT: hyper Definition of the hyperparameters
+        hyper = NULL,
 
-         ##:ARGUMENT: initial (OBSOLETE!) Initial value for the hyperparameter(s) of the likelihood in the internal scale.
-         initial=NULL,
+        ##:ARGUMENT: initial (OBSOLETE!) Initial value for the hyperparameter(s) of the likelihood in the internal scale.
+        initial=NULL,
 
-         ##:ARGUMENT: prior (OBSOLETE!) The name of the prior distribution(s) for othe hyperparameter(s).
-         prior=NULL,
+        ##:ARGUMENT: prior (OBSOLETE!) The name of the prior distribution(s) for othe hyperparameter(s).
+        prior=NULL,
 
-         ##:ARGUMENT: param (OBSOLETE!) The parameters for the prior distribution
-         param=NULL,
+        ##:ARGUMENT: param (OBSOLETE!) The parameters for the prior distribution
+        param=NULL,
 
-         ##:ARGUMENT: fixed (OBSOLETE!) Boolean variable(s) to say if the hyperparameter(s) is fixed or random.
-         fixed=NULL,
+        ##:ARGUMENT: fixed (OBSOLETE!) Boolean variable(s) to say if the hyperparameter(s) is fixed or random.
+        fixed=NULL,
 
-         ##:ARGUMENT: link The link function to use.
-         link="default",
+        ##:ARGUMENT: link The link function to use.
+        link="default",
 
-         ##:ARGUMENT: alpha The parameter 'alpha' for the asymmetric Laplace likelihood  (default 0.5)
-         alpha=0.5,
+        ##:ARGUMENT: alpha The parameter 'alpha' for the asymmetric Laplace likelihood  (default 0.5)
+        alpha=0.5,
 
-         ##:ARGUMENT: epsilon The parameter 'epsilon' for the asymmetric Laplace likelihood (default 0.01)
-         epsilon = 0.01,
+        ##:ARGUMENT: epsilon The parameter 'epsilon' for the asymmetric Laplace likelihood (default 0.01)
+        epsilon = 0.01,
 
-         ##:ARGUMENT: gamma The parameter 'gamma' for the asymmetric Laplace likelihood (default 1.0)
-         gamma = 1.0,
+        ##:ARGUMENT: gamma The parameter 'gamma' for the asymmetric Laplace likelihood (default 1.0)
+        gamma = 1.0,
 
-         ##:ARGUMENT: sh.shape.max Maximum value for the shape-parameter for Skew Normal observations
-         sn.shape.max = 5.0,
+        ##:ARGUMENT: sh.shape.max Maximum value for the shape-parameter for Skew Normal observations
+        sn.shape.max = 5.0,
 
-         ##:ARGUMENT: gev.scale.xi The scaling of the shape-parameter for the GEV distribution. (default 0.01)
-         gev.scale.xi = 0.01,
+        ##:ARGUMENT: gev.scale.xi The internal scaling of the shape-parameter for the GEV distribution. (default 0.01)
+        gev.scale.xi = 0.01,
 
-         ##:ARGUMENT: variant This variable is used to give options for various variants of the likelihood,  like chosing different parameterisations for example. See the relevant likelihood documentations for options (does only apply to some likelihoods).
-         variant = 0L
-         )
+        ##:ARGUMENT: variant This variable is used to give options for various variants of the likelihood,  like chosing different parameterisations for example. See the relevant likelihood documentations for options (does only apply to some likelihoods).
+        variant = 0L,
+
+        ##:ARGUMENT: control.mix See \code{?control.mix}
+        control.mix = NULL
+        )
 
     ##:SEEALSO: inla
 }
@@ -195,6 +239,9 @@
             ##:ARGUMENT: interpolator  The interpolator used to compute the marginals for the hyperparameters. One of 'auto', 'nearest', 'quadratic', 'weighted.distance', 'ccd', 'ccdintegrate', 'gridsum', 'gaussian'. Default is 'auto'.
             interpolator="auto",
 
+            ##:ARGUMENT: fast Fast mode? If on, then replace conditional modes in the Laplace approximation with conditional expectation (default TRUE)
+            fast = TRUE,
+            
             ##:ARGUMENT: linear.correction  Default TRUE for the 'strategy = laplace' option.
             linear.correction=NULL,
 
@@ -243,7 +290,7 @@
             ##:ARGUMENT: verbose A boolean variable; run in verbose mode? (Default FALSE)
             verbose = NULL,
 
-            ##:ARGUMENT: reordering Type of reordering to use. (EXPERT OPTION; one of "AUTO", "DEFAULT", "IDENTITY", "BAND", "METIS", "GENMMD", "AMD", "MD", "MMD", "AMDBAR", "AMDC", "AMDBARC",  or the output from \code{inla.qreordering}.)
+            ##:ARGUMENT: reordering Type of reordering to use. (EXPERT OPTION; one of "AUTO", "DEFAULT", "IDENTITY", "REVERSEIDENTITY",  "BAND", "METIS", "GENMMD", "AMD", "MD", "MMD", "AMDBAR", "AMDC", "AMDBARC",  or the output from \code{inla.qreordering}.)
             reordering = "auto",
 
             ##:ARGUMENT: cpo.diff Threshold to define when the cpo-calculations are inaccurate. (EXPERT OPTION.)

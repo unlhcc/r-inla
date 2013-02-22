@@ -15,10 +15,11 @@ inla(formula, ..., control.compute=list( <arg>=<value>[, <arg>=<value>]))
 \item{mlik}{  A boolean variable if the marginal likelihood should be computed. Default FALSE.}
 \item{cpo}{  A boolean variable if the cross-validated predictive measures (cpo, pit) should be computed}
 \item{q}{  A boolean variable if binary images of the precision matrix, the reordered precision matrix and the Cholesky triangle should be generated. (Default FALSE.)}
+\item{config}{  A boolean variable if the internal GMRF approximations be stored. (Default FALSE. EXPERIMENTAL)}
 \item{smtp}{  The sparse-matrix solver, one of 'smtp' (default) or 'band'}
 \item{graph}{  A boolean variable if the graph itself should be returned. (Default FALSE.)}
 }
 \seealso{
-\code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.family}}, \code{\link{control.data}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
+\code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.mix}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.family}}, \code{\link{control.data}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
 \code{\link{inla}}
 }

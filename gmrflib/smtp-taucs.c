@@ -333,6 +333,29 @@ taucs_ccs_matrix *GMRFLib_my_taucs_dccs_duplicate(taucs_ccs_matrix * L, int flag
 
 	return LL;
 }
+int GMRFLib_print_ccs_matrix(FILE *fp, taucs_ccs_matrix * L)
+{
+	if (!L) {
+		return GMRFLib_SUCCESS;
+	}
+	
+	int i;
+	int n = L->n;
+	int nnz = L->colptr[L->n];
+
+	fprintf(fp, "n = %d\n", n);
+	fprintf(fp, "nnz = %d\n", nnz);
+
+	for(i=0; i< n+1; i++) {
+		fprintf(fp, "\tcolptr[%1d] = %1d\n", i, L->colptr[i]);
+	}
+	for(i=0; i<nnz; i++) {
+		fprintf(fp, "\trowind[%1d] = %1d\n", i, L->rowind[i]);
+		fprintf(fp, "\tvalues[%1d] = %.12g\n", i, L->values.d[i]);
+	}
+
+	return GMRFLib_SUCCESS;
+}
 GMRFLib_sizeof_tp GMRFLib_my_taucs_dccs_sizeof(taucs_ccs_matrix * L)
 {
 	/*
@@ -423,6 +446,23 @@ int GMRFLib_compute_reordering_TAUCS(int **remap, GMRFLib_graph_tp * graph, GMRF
 		return GMRFLib_SUCCESS;
 	}
 
+	if (reorder == GMRFLib_REORDER_IDENTITY || reorder == GMRFLib_REORDER_REVERSE_IDENTITY) {
+		int *imap = Calloc(graph->n, int);
+		if (reorder == GMRFLib_REORDER_IDENTITY){
+			for(i=0; i<graph->n; i++){
+				imap[i] = i;
+			}
+		} else if (reorder == GMRFLib_REORDER_REVERSE_IDENTITY){
+			for(i=0; i<graph->n; i++){
+				imap[i] = graph->n -1 -i;
+			}
+		} else {
+			assert(0==1);
+		}
+		*remap = imap;
+		return GMRFLib_SUCCESS;
+	}
+
 	/*
 	 * check if we have a simple solution --> no neigbours 
 	 */
@@ -498,6 +538,9 @@ int GMRFLib_compute_reordering_TAUCS(int **remap, GMRFLib_graph_tp * graph, GMRF
 		switch (reorder) {
 		case GMRFLib_REORDER_IDENTITY:
 			p = GMRFLib_strdup("identity");
+			break;
+		case GMRFLib_REORDER_REVERSE_IDENTITY:
+			p = GMRFLib_strdup("reverseidentity");
 			break;
 		case GMRFLib_REORDER_DEFAULT:
 		case GMRFLib_REORDER_METIS:

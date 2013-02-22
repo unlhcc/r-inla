@@ -222,7 +222,7 @@
         of=NULL,
 
         ##!\item{precision}{The precision for the artifical noise added when creating a copy of a model.}
-        precision=NULL,
+        precision = 1.0e9,
 
         ##!\item{range}{A vector of size two giving the lower and
         ##!upper range for the scaling parameter \code{beta} in the
@@ -236,11 +236,19 @@
         ##!1. If FALSE, do nothing.}
         adjust.for.con.comp = TRUE,
 
+        ##!\item{order}{Defines the \code{order} of the model: for
+        ##!model \code{ar} this defines the order p, in AR(p). Not
+        ##!used for other models at the time being.}
+        order = NULL, 
+
         ##!\item{scale}{A scaling vector. Its meaning depends on the model.}
         scale = NULL, 
 
         ##!\item{strata}{A stratum vector. It meaning depends on the model.}
         strata = NULL, 
+
+        ##!\item{rgeneric}{A object of class \code{inla-rgeneric} which defines the model. (EXPERIMENTAL!)}
+        rgeneric = NULL, 
 
         ## local debug-flag
         debug = FALSE)
@@ -396,6 +404,18 @@
         }
     }
 
+    ## check that 'order' is define only for model AR (at this moment)
+    if (inla.one.of(model, "ar")) {
+        if (is.null(order) || missing(order) || order < 1L) {
+            stop("Model 'ar' needs 'order' to be defined as an integer > 0.")
+        }
+        order = as.integer(order)
+        max.order = length(inla.models()$latent$ar$hyper) -1L
+        if (order > max.order) {
+            stop(paste("Model 'ar': order=", order, ", is to large. max.order =", max.order, sep=""))
+        }
+    }
+
     ## check that the Q matrix is defined if and only if the model is
     ## generic. same with the Cmatrix
     if (inla.one.of(model, c("generic", "generic0","generic1", "generic2"))) {
@@ -526,8 +546,8 @@
 
     ## cyclic is only valid for rw1, rw2 and rw2d-models
     if (!is.null(cyclic) && cyclic &&
-        !inla.one.of(model, c("rw1", "rw2", "rw2d", "rw1c2", "rw2c2"))) {
-        stop("Cyclic defined only for rw1, rw1c2, rw2, rw2c2 and rw2d models")
+        !inla.one.of(model, c("rw1", "rw2", "rw2d", "rw1c2", "rw2c2", "ar1"))) {
+        stop("Cyclic defined only for rw1, rw1c2, rw2, rw2c2, rw2d and ar1 models")
     }
 
     need.nrow.ncol = inla.model.properties(model, "latent")$nrow.ncol
@@ -707,6 +727,13 @@
         }
     }
 
+    if (model %in% "rgeneric") {
+        stopifnot(inherits(rgeneric, "inla-rgeneric"))
+        if (inla.os("windows")) {
+            stop("Model 'rgeneric' is not available for Windows; please use Linux or MacOSX. (No, there is no quick fix.)")
+        }
+    }
+
     ret=list(
             Cmatrix = Cmatrix,
             Z=Z,
@@ -744,9 +771,11 @@
             spde2.transform = spde2.transform,
             term=term,
             values=values,
+            order = order, 
             weights=weights,
             scale = scale,
-            strata = strata
+            strata = strata,
+            rgeneric = rgeneric
             )
 
     return (ret)
