@@ -20,12 +20,11 @@ where
 
 \subsection*{Link-function}
 
-The scale parameter $\sigma $ is linked to the linear predictor $\eta
-$ as:
+The squared scale parameter $\sigma$ is linked to the linear predictor
+$\eta$ as:
 \[
-\sigma =\exp(\eta /2)
+\sigma^{2} =\exp(\eta)
 \]
-
 
 \subsection*{Hyperparameters}
 
@@ -39,7 +38,7 @@ None
 \end{itemize}
 
 \subsubsection*{Hyperparameter spesification and default values}
-\input{../hyper/likelihood/gev.tex}
+\input{../hyper/likelihood/stochvol.tex}
 
 \subsection*{Example}
 In the following example we specify the likelihood for the stochastic

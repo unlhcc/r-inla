@@ -374,10 +374,12 @@
     if (!is.data.frame(data) && !is.list(data)) {
         stop("\n\tArgument `data' must be a data.frame or a list.")
     }
-    if (!is.null(weights)) {
-        if (!inla.getOption("enable.inla.argument.weights")) {
-            stop(paste("Argument 'weights' must be enabled before use due to the risk of mis-interpreting the results.\n",
-                       "\tUse 'inla.setOption(\"enable.inla.argument.weights\", TRUE)' to enable it; see ?inla"))
+    if (!missing(weights)) {
+        if (!is.null(weights)) {
+            if (!inla.getOption("enable.inla.argument.weights")) {
+                stop(paste("Argument 'weights' must be enabled before use due to the risk of mis-interpreting the results.\n",
+                           "\tUse 'inla.setOption(\"enable.inla.argument.weights\", TRUE)' to enable it; see ?inla"))
+            }
         }
     }
 
@@ -1827,10 +1829,10 @@
                 if (inla.os("mac")) {
                     ## cannot run in verbose mode
                     all.args = gsub("-v", "", all.args)
-                    tmp.0 = multicore::parallel(system(paste(shquote(inla.call), all.args, shQuote(file.ini))))
+                    tmp.0 = multicore::parallel(system(paste(shQuote(inla.call), all.args, shQuote(file.ini))))
                 } else {
                     if (verbose) {
-                        tmp.0 = multicore::parallel(system(paste(shquote(inla.call), all.args, shQuote(file.ini))))
+                        tmp.0 = multicore::parallel(system(paste(shQuote(inla.call), all.args, shQuote(file.ini))))
                     } else {
                         tmp.0 = multicore::parallel(system(paste(shQuote(inla.call), all.args, shQuote(file.ini), " > ", file.log,
                                 inla.ifelse(silent == 2L, " 2>/dev/null", ""))))
