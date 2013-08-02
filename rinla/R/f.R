@@ -270,7 +270,7 @@
         ##!\item{of}{TODO}
         of=NULL,
 
-        ##!\item{precision}{The precision for the artifical noise added when creating a copy of a model.}
+        ##!\item{precision}{The precision for the artifical noise added when creating a copy of a model or the z-model.}
         precision = 1.0e9,
 
         ##!\item{range}{A vector of size two giving the lower and
@@ -543,6 +543,19 @@
         }
         if (is.null(n)) {
             n = sum(dim(Z))
+        }
+        if (!is.null(constr) && constr == TRUE) {
+            ## let constr=TRUE be defined as sum(z)=0 only.
+            constr=FALSE 
+            zn = dim(Z)[1L]
+            zm = dim(Z)[2L]
+            z.row = c(rep(0, zn), rep(1, zm))
+            if (is.null(extraconstr)) {
+                extraconstr = list(A = matrix(z.row, 1, zn+zm), e=0)
+            } else {
+                extraconstr$A = rbind(extraconstr$A, z.row)
+                extraconstr$e = c(extraconstr$e, 0)
+            }
         }
     }
 
