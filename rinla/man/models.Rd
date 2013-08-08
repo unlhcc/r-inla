@@ -2717,7 +2717,8 @@ inla.models()
 								\item{n.div.by = }{`NULL'}
 								\item{n.required = }{`TRUE'}
 								\item{set.default.values = }{`TRUE'}
-								\item{pdf = }{`z.pdf'}
+								\item{pdf = }{`z'}
+								\item{status = }{`experimental'}
 							 }
 						 }
 					 }
