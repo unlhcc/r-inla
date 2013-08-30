@@ -13,6 +13,22 @@
 ## Export: inla.set.control.mode.default
 ## Export: inla.set.control.hazard.default
 
+## Export: control.lincomb
+## Export: control.group
+## Export: control.mix
+## Export: control.link
+## Export: control.expert
+## Export: control.compute
+## Export: control.family
+## Export: control.fixed
+## Export: control.inla
+## Export: control.predictor
+## Export: control.results
+## Export: control.mode
+## Export: control.hazard
+
+
+
 ### Defines default arguments
 
 `inla.set.control.lincomb.default` =
@@ -71,6 +87,7 @@
 
     ##:SEEALSO: inla
 }
+
 
 `inla.set.control.mix.default` =
     function(...)
@@ -132,11 +149,13 @@
     ##:SEEALSO: inla
 }
 
+
 `inla.set.f.default` =
     function(...)
 {
-    list(diagonal = 1e-6)
+    list(diagonal = .Machine$double.eps^0.3833) ## almost 1e-6 on my computer
 }
+
 
 `inla.set.control.expert.default` =
     function(...)
@@ -301,7 +320,10 @@
     function(...)
 {
     family = "gaussian"
-    inla.eval.dots(..., allowed.names = c("family"))
+    xx = list(...)[1]
+    if (!is.null(xx$family)) {
+        family = xx$family
+    }
 
     ##:EXTRA: 
     ##:NAME: control.inla
@@ -439,13 +461,14 @@
             
 
     ## use default Gaussian strategy if the observations are gaussian
-    if (all(inla.strcasecmp(family, "gaussian")))
+    if (all(tolower(family) %in% "gaussian"))
         ans$strategy = "gaussian"
 
     ##:SEEALSO: inla
 
     return (ans)
 }
+
 
 `inla.set.control.predictor.default`=
     function(...)
@@ -571,7 +594,6 @@
     ##:SEEALSO: inla
 }
 
-
 ## check control-arguments
 
 `inla.check.control` = function(contr, data = NULL)
@@ -616,3 +638,57 @@
 
     return(contr)
 }
+
+
+
+## test-implementation
+##`control.lincomb` = function(precision, verbose)
+##{
+##    aa = match.call()[-1]
+##    ret = list()
+##    for(a in names(aa)) {
+##        if (!missing(a)) {
+##            xx = get(a)
+##            names(xx) = a
+##            ret = c(ret, xx)
+##        }
+##    }
+##    return (ret)
+##}
+
+inla.make.completion.function = function(...)
+{
+    my.eval = function(command, envir = parent.frame(),
+            enclos = if (is.list(envir) || is.pairlist(envir)) parent.frame() else baseenv()) 
+    {
+        return(eval(parse(text = command), envir, enclos))
+    }
+
+    xx = sort(list(...)[[1L]])
+    my.eval(paste("function(", paste(xx, sep="", collapse=" ,"), ") {
+    aa = match.call()[-1L]
+    ret = list()
+    for(a in names(aa)) {
+        if (!missing(a)) {
+            xx = get(a)
+            names(xx) = a
+            ret = c(ret, xx)
+        }
+    }
+    return (ret)
+}"))
+}
+
+control.lincomb = inla.make.completion.function(names(inla.set.control.lincomb.default()))
+control.group = inla.make.completion.function(names(inla.set.control.group.default()))
+control.mix = inla.make.completion.function(names(inla.set.control.mix.default()))
+control.link = inla.make.completion.function(names(inla.set.control.link.default()))
+control.expert = inla.make.completion.function(names(inla.set.control.expert.default()))
+control.compute = inla.make.completion.function(names(inla.set.control.compute.default()))
+control.family = inla.make.completion.function(names(inla.set.control.family.default()))
+control.fixed = inla.make.completion.function(names(inla.set.control.fixed.default()))
+control.inla = inla.make.completion.function(names(inla.set.control.inla.default()))
+control.predictor = inla.make.completion.function(names(inla.set.control.predictor.default()))
+control.results = inla.make.completion.function(names(inla.set.control.results.default()))
+control.mode = inla.make.completion.function(names(inla.set.control.mode.default()))
+control.hazard = inla.make.completion.function(names(inla.set.control.hazard.default()))
