@@ -5,7 +5,6 @@
 ## Export: inla.set.control.expert.default
 ## Export: inla.set.control.compute.default
 ## Export: inla.set.control.family.default
-## Export: inla.set.control.data.default
 ## Export: inla.set.control.fixed.default
 ## Export: inla.set.control.inla.default
 ## Export: inla.set.control.predictor.default
@@ -268,15 +267,6 @@
         )
 
     ##:SEEALSO: inla
-}
-
-`inla.set.control.data.default`=
-    function(...)
-{
-    ##:EXTRA: 
-    ##:NAME: control.data
-    ##:SEEALSO: inla
-    return (inla.set.control.family.default(...))
 }
 
 `inla.set.control.fixed.default`=
