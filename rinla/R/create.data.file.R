@@ -133,7 +133,7 @@
         null.dat = is.na(response[, 3L])
         response = response[!null.dat,]
 
-    } else if (inla.one.of(family, c("gammacount"))) {
+    } else if (inla.one.of(family, c("gammacount", "exponential"))) {
 
         response = cbind(ind, y.orig)
         null.dat = is.na(response[, 2L])
@@ -207,43 +207,40 @@
         null.dat = is.na(response[, 4L])
         response = response[!null.dat,]
 
-    } else if (inla.one.of(family, c("exponential", "weibull", "weibullcure", "loglogistic",  "lognormalsurv"))) {
+    } else if (inla.one.of(family, c("exponentialsurv", "weibull", "weibullcure", "loglogistic",  "lognormalsurv"))) {
 
         if (!inla.model.properties(family, "likelihood")$survival) {
             file.remove(file)
             file.remove(data.dir)
             stop("This should not happen.")
         }
-
-        if (is.null(y.orig$truncation)) {
-            file.remove(file)
-            file.remove(data.dir)
-            stop("Responce does not contain variable `truncation'.")
-        }
-        if (is.null(y.orig$lower)) {
-            file.remove(file)
-            file.remove(data.dir)
-            stop("Responce does not contain variable `lower'.")
-        }
-        if (is.null(y.orig$upper)) {
-            file.remove(file)
-            file.remove(data.dir)
-            stop("Responce does not contain variable `upper'.")
-        }
-        if (is.null(y.orig$event)) {
-            file.remove(file)
-            file.remove(data.dir)
-            stop("Responce does not contain variable `event'.")
-        }
         if (is.null(y.orig$time)) {
             file.remove(file)
             file.remove(data.dir)
             stop("Responce does not contain variable `time'.")
         }
+        len = length(y.orig$time)
+
+        if (is.null(y.orig$truncation)) {
+            y.orig$truncation = rep(0, len)
+        }
+        if (is.null(y.orig$lower)) {
+            y.orig$lower = rep(0, len)
+        }
+        if (is.null(y.orig$upper)) {
+            y.orig$upper = rep(Inf, len)
+        }
+        if (is.null(y.orig$event)) {
+            y.orig$event = rep(1, len)
+        }
 
         idx = !is.na(y.orig$time)
-        response = cbind(ind[idx], y.orig$event[idx], y.orig$truncation[idx], y.orig$lower[idx], y.orig$upper[idx], y.orig$time[idx])
-
+        response = cbind(ind[idx],
+                         y.orig$event[idx],
+                         y.orig$truncation[idx],
+                         y.orig$lower[idx],
+                         y.orig$upper[idx],
+                         y.orig$time[idx])
         if (any(is.na(response))) {
             file.remove(file)
             file.remove(data.dir)
