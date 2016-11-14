@@ -534,7 +534,7 @@ typedef enum {
 	G_RW2,
 	G_AR,
 	G_BESAG,
-	G_I,
+	G_IID,
 	MIX_GAUSSIAN = 4000,				       /* mix-models */
 	LINK_IDENTITY = 5000,				       /* link-models */
 	LINK_LOG,
@@ -1612,6 +1612,7 @@ int loglikelihood_zeroinflated_poisson0(double *logll, double *x, int m, int idx
 int loglikelihood_zeroinflated_poisson1(double *logll, double *x, int m, int idx, double *x_vec, void *arg);
 int loglikelihood_zeroinflated_poisson2(double *logll, double *x, int m, int idx, double *x_vec, void *arg);
 int my_file_exists(const char *filename);
+int my_dir_exists(const char *dirname);
 int my_setenv(char *str, int prefix);
 int testit(int argc, char **argv);
 map_table_tp *mapfunc_find(const char *name);

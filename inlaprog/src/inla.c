@@ -1487,7 +1487,7 @@ double Qfunc_group(int i, int j, void *arg)
 		ardef = a->ardef;
 		break;
 
-	case G_I:
+	case G_IID:
 	case G_RW1:
 	case G_RW2:
 	case G_BESAG:
@@ -1540,7 +1540,7 @@ double Qfunc_group(int i, int j, void *arg)
 			fac = prec * Qfunc_besag(igroup, jgroup, (void *) (a->besagdef));
 			break;
 
-		case G_I:
+		case G_IID:
 			fac = prec;
 			break;
 
@@ -1578,7 +1578,7 @@ double Qfunc_group(int i, int j, void *arg)
 			fac = prec * Qfunc_besag(igroup, jgroup, (void *) (a->besagdef));
 			break;
 
-		case G_I:
+		case G_IID:
 			fac = prec * 0.0;
 			break;
 
@@ -1681,7 +1681,7 @@ int inla_make_group_graph(GMRFLib_graph_tp ** new_graph, GMRFLib_graph_tp * grap
 		}
 		break;
 
-	case G_I:
+	case G_IID:
 		assert(ngroup >= 1);
 		for (i = 0; i < ngroup; i++) {
 			GMRFLib_ged_insert_graph2(ged, graph, i * n, i * n);
@@ -19203,17 +19203,27 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		/*
 		 * R_GENERIC
 		 */
-		inla_rgeneric_tp *def = Calloc(1, inla_rgeneric_tp);
+		inla_rgeneric_tp *def = Calloc(1, inla_rgeneric_tp), *def_orig = Calloc(1, inla_rgeneric_tp);
 
 		def->file_init = GMRFLib_strdup(rgeneric_Rinit);
 		def->filename = GMRFLib_strdup(rgeneric_filename);
 		def->model = GMRFLib_strdup(rgeneric_model);
+		def->mu = Calloc(ISQR(GMRFLib_MAX_THREADS), double *);	     /* easier if we do this here */
+		def->mu_param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *); /* easier if we do this here */
 		def->ntheta = mb->f_ntheta[mb->nf];
+		def->param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *); /* easier if we do this here */
 		def->theta = mb->f_theta[mb->nf];
-		def->param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *);	/* easier if we do this here */
-		def->mu_param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *);	/* easier if we do this here */
-		def->Q = Calloc(ISQR(GMRFLib_MAX_THREADS), GMRFLib_tabulate_Qfunc_tp *);	/* easier if we do this here */
-		def->mu = Calloc(ISQR(GMRFLib_MAX_THREADS), double *);	/* easier if we do this here */
+		def->Q = Calloc(ISQR(GMRFLib_MAX_THREADS), GMRFLib_tabulate_Qfunc_tp *); /* easier if we do this here */
+
+		def_orig->file_init = GMRFLib_strdup(rgeneric_Rinit);
+		def_orig->filename = GMRFLib_strdup(rgeneric_filename);
+		def_orig->model = GMRFLib_strdup(rgeneric_model);
+		def_orig->mu = Calloc(ISQR(GMRFLib_MAX_THREADS), double *);	  /* easier if we do this here */
+		def_orig->mu_param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *); /* easier if we do this here */
+		def_orig->ntheta = mb->f_ntheta[mb->nf];
+		def_orig->param = Calloc(ISQR(GMRFLib_MAX_THREADS), double *); /* easier if we do this here */
+		def_orig->theta = mb->f_theta[mb->nf];
+		def_orig->Q = Calloc(ISQR(GMRFLib_MAX_THREADS), GMRFLib_tabulate_Qfunc_tp *); /* easier if we do this here */
 
 		int n_out;
 		double *x_out;
@@ -19245,7 +19255,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		}
 
 		GMRFLib_tabulate_Qfunc_tp *tab;
-		GMRFLib_graph_tp *graph;
+		GMRFLib_graph_tp *graph, *ggraph;
 
 		GMRFLib_tabulate_Qfunc_from_list(&tab, &graph, len, ilist, jlist, Qijlist, n, NULL, NULL, NULL);
 		GMRFLib_free_tabulate_Qfunc(tab);
@@ -19254,10 +19264,15 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		Free(Qijlist);
 		Free(x_out);
 
-		// GMRFLib_print_graph(stdout, graph);
 		mb->f_graph[mb->nf] = graph;
 		mb->f_Qfunc[mb->nf] = Qfunc_rgeneric;
 		mb->f_Qfunc_arg[mb->nf] = (void *) def;
+
+		GMRFLib_copy_graph(&ggraph, graph);
+		mb->f_graph_orig[mb->nf] = ggraph;
+		mb->f_Qfunc_orig[mb->nf] = Qfunc_rgeneric;
+		mb->f_Qfunc_arg_orig[mb->nf] = (void *) def_orig;
+
 		mb->f_N[mb->nf] = mb->f_n[mb->nf] = def->n = graph->n;
 		mb->f_rankdef[mb->nf] = 0.0;
 
@@ -19665,8 +19680,8 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 				mb->f_group_model[mb->nf] = G_RW2;
 			} else if (!strcasecmp(ptmp, "BESAG")) {
 				mb->f_group_model[mb->nf] = G_BESAG;
-			} else if (!strcasecmp(ptmp, "I")) {
-				mb->f_group_model[mb->nf] = G_I;
+			} else if (!strcasecmp(ptmp, "IID")) {
+				mb->f_group_model[mb->nf] = G_IID;
 			} else {
 				GMRFLib_sprintf(&msg, "%s: Unknown GROUP.MODEL: %s\n", secname, ptmp);
 				inla_error_general(msg);
@@ -19703,7 +19718,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 			case G_RW1:
 			case G_RW2:
 			case G_BESAG:
-			case G_I:
+			case G_IID:
 				fixed = iniparser_getboolean(ini, inla_string_join(secname, "GROUP.FIXED"), 0);
 				tmp = iniparser_getdouble(ini, inla_string_join(secname, "GROUP.INITIAL"), 0.0);
 				if (!fixed && mb->reuse_mode) {
@@ -19756,7 +19771,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 					mb->f_ntheta[mb->nf]++;
 					break;
 
-				case G_I:
+				case G_IID:
 				case G_RW1:
 				case G_RW2:
 				case G_BESAG:
@@ -19831,7 +19846,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 						mb->theta_map_arg[mb->ntheta] = NULL;
 						break;
 
-					case G_I:
+					case G_IID:
 					case G_RW1:
 					case G_RW2:
 					case G_BESAG:
@@ -21356,7 +21371,7 @@ double extra(double *theta, int ntheta, void *argument)
 				if (NOT_FIXED(f_fixed[i][(_nt_)])) {	\
 					val += PRIOR_EVAL(mb->f_prior[i][(_nt_)], &group_prec_intern); \
 				}					\
-			} else if (mb->f_group_model[i] == G_I) {	\
+			} else if (mb->f_group_model[i] == G_IID) {	\
 				grankdef = 0.0;				\
 				group_prec = map_precision(group_prec_intern, MAP_FORWARD, NULL); \
 				normc_g = 0.5 * (ngroup - grankdef) * log(group_prec); \
@@ -23427,7 +23442,6 @@ double extra(double *theta, int ntheta, void *argument)
 			} else {
 				mean_x = mb->f_theta[i][2][GMRFLib_thread_id][0];
 			}
-
 			if (NOT_FIXED(f_fixed[i][3])) {
 				log_precision_x = theta[count];
 				val += PRIOR_EVAL(mb->f_prior[i][3], &log_precision_x);
@@ -23509,7 +23523,7 @@ double extra(double *theta, int ntheta, void *argument)
 			inla_rgeneric_tp *def = NULL;
 			double *param = NULL, log_norm_const = 0.0, log_prior = 0.0;
 
-			def = (inla_rgeneric_tp *) mb->f_Qfunc_arg[i];
+			def = (inla_rgeneric_tp *) mb->f_Qfunc_arg_orig[i];
 			if (ntheta) {
 				param = Calloc(ntheta, double);
 				for (ii = 0; ii < ntheta; ii++) {
@@ -28248,11 +28262,13 @@ int inla_output_detail(const char *dir, GMRFLib_density_tp ** density, GMRFLib_d
 }
 int my_file_exists(const char *filename)
 {
-	if (access(filename, F_OK) != -1) {
-		return (INLA_OK);
-	} else {
-		return (!INLA_OK);
-	}
+	struct stat sb;
+	return ((stat(filename, &sb) == 0 && S_ISREG(sb.st_mode)) ? INLA_OK : !INLA_OK);
+}
+int my_dir_exists(const char *dirname)
+{
+	struct stat sb;
+	return ((stat(dirname, &sb) == 0 && S_ISDIR(sb.st_mode)) ? INLA_OK : !INLA_OK);
 }
 int my_setenv(char *str, int prefix)
 {
