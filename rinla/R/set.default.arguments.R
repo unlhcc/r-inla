@@ -66,7 +66,7 @@
     ##:EXTRA: 
     ##:NAME: control.group
     list(
-        ##:ARGUMENT: model Group model (one of 'exchangable', 'exchangablepos', 'ar1',  'ar', 'rw1', 'rw2', 'besag', or 'I')
+        ##:ARGUMENT: model Group model (one of 'exchangable', 'exchangablepos', 'ar1',  'ar', 'rw1', 'rw2', 'besag', or 'iid')
         model = "exchangeable",
         
         ##:ARGUMENT: order Defines the \code{order} of the model: for model \code{ar} this defines the order p, in AR(p). Not used for other models at the time being.
@@ -275,15 +275,6 @@
         ##:ARGUMENT: link (OBSOLETE! Use \code{control.link=list(model=)} instead.) The link function to use.
         link= "default",
 
-        ##:ARGUMENT: alpha The parameter 'alpha' for the asymmetric Laplace likelihood  (default 0.5)
-        alpha=0.5,
-
-        ##:ARGUMENT: epsilon The parameter 'epsilon' for the asymmetric Laplace likelihood (default 0.01)
-        epsilon = 0.01,
-
-        ##:ARGUMENT: gamma The parameter 'gamma' for the asymmetric Laplace likelihood (default 1.0)
-        gamma = 1.0,
-
         ##:ARGUMENT: sn.shape.max Maximum value for the shape-parameter for Skew Normal observations
         sn.shape.max = 5.0,
 
@@ -292,6 +283,9 @@
 
         ##:ARGUMENT: cenpoisson.I The censoring interval for the censored Poisson
         cenpoisson.I = c(-1L, -1L),
+
+        ##:ARGUMENT: quantile The quantile to be used for the quantile parameterised likelihoods (default 0.5)
+        quantile = 0.5, 
 
         ##:ARGUMENT: variant This variable is used to give options for various variants of the likelihood,  like chosing different parameterisations for example. See the relevant likelihood documentations for options (does only apply to some likelihoods).
         variant = 0L,
