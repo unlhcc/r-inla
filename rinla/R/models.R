@@ -527,6 +527,17 @@
                              fixed = FALSE,
                              to.theta = function(x) log((1+x)/(1-x)),
                              from.theta = function(x) 2*exp(x)/(1+exp(x))-1
+                             ), 
+                         theta3 = list(
+                             hyperid =  14003,
+                             name = "mean",
+                             short.name = "mean",
+                             prior = "normal",
+                             param = c(0, 1),
+                             initial = 0,
+                             fixed = TRUE,
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
                              )
                          ),
                      constr = FALSE,
@@ -673,7 +684,6 @@
                      n.div.by = NULL,
                      n.required = FALSE,
                      set.default.values = FALSE,
-                     status = "experimental", 
                      pdf = "ar"
                      ),
 
@@ -4506,6 +4516,7 @@
                  loglog = list(hyper = list()), 
                  identity = list(hyper = list()), 
                  log = list(hyper = list()), 
+                 neglog = list(hyper = list()), 
                  logit = list(hyper = list()), 
                  probit = list(hyper = list()), 
                  cauchit = list(hyper = list()), 
@@ -4745,7 +4756,7 @@
                              hyperid =  53001,
                              name = "log precision",
                              short.name = "prec",
-                             initial = 14,
+                             initial = 12,
                              fixed = TRUE,
                              prior = "loggamma",
                              param = c(1, 0.00001),
@@ -5046,8 +5057,8 @@
                              short.name = "size",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                              )
@@ -5436,7 +5447,7 @@
                          ),
                      survival = TRUE,
                      discrete = FALSE,
-                     link = c("default", "log"),
+                     link = c("default", "log", "neglog"),
                      pdf = "exponential"
                      ),
 
@@ -5445,7 +5456,7 @@
                          ),
                      survival = TRUE,
                      discrete = TRUE,
-                     link = c("default", "log"),
+                     link = c("default", "log", "neglog"),
                      pdf = "coxph"
                      ),
 
@@ -5489,7 +5500,7 @@
                          ),
                      survival = TRUE,
                      discrete = FALSE,
-                     link = c("default", "log"),
+                     link = c("default", "log", "neglog"),
                      pdf = "weibull"
                      ),
 
@@ -5509,7 +5520,7 @@
                          ),
                      survival = TRUE,
                      discrete = FALSE,
-                     link = c("default", "log"),
+                     link = c("default", "log", "neglog"),
                      pdf = "loglogistic"
                      ),
 
@@ -5540,7 +5551,7 @@
                          ),
                      survival = TRUE,
                      discrete = FALSE,
-                     link = c("default", "log"),
+                     link = c("default", "log", "neglog"),
                      pdf = NA
                      ),
 
@@ -5899,8 +5910,8 @@
                              short.name = "size",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                              ),
@@ -5930,8 +5941,8 @@
                              short.name = "size",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                              ),
@@ -5961,8 +5972,8 @@
                              short.name = "size",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, .1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6103,8 +6114,8 @@
                              short.name = "size1",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6114,8 +6125,8 @@
                              short.name = "size2",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6125,8 +6136,8 @@
                              short.name = "size3",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6136,8 +6147,8 @@
                              short.name = "size4",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6147,8 +6158,8 @@
                              short.name = "size5",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6158,8 +6169,8 @@
                              short.name = "size6",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6169,8 +6180,8 @@
                              short.name = "size7",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6180,8 +6191,8 @@
                              short.name = "size8",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6191,8 +6202,8 @@
                              short.name = "size9",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          ),
@@ -6202,8 +6213,8 @@
                              short.name = "size10",
                              initial = log(10),
                              fixed = TRUE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                          )
@@ -6223,8 +6234,8 @@
                              short.name = "size",
                              initial = log(10),
                              fixed = FALSE,
-                             prior = "loggamma",
-                             param = c(1, 0.1),
+                             prior = "pc.mgamma",
+                             param = 7,
                              to.theta = function(x) log(x),
                              from.theta = function(x) exp(x)
                              ),
@@ -6407,6 +6418,176 @@
                      pdf = "tstrata"
                      ),
 
+                 nmix = list(
+                     hyper = list(
+                         theta1 = list(
+                             hyperid =  101101,
+                             name = "beta1",
+                             short.name = "beta1",
+                             initial = log(10),
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 0.5),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+
+                         theta2 = list(
+                             hyperid =  101102,
+                             name = "beta2",
+                             short.name = "beta2",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+                         
+                         theta3 = list(
+                             hyperid =  101103,
+                             name = "beta3",
+                             short.name = "beta3",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                         ),
+                         
+                         theta4 = list(
+                             hyperid =  101104,
+                             name = "beta4",
+                             short.name = "beta4",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+                         theta5 = list(
+                             hyperid =  101105,
+                             name = "beta5",
+                             short.name = "beta5",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             )
+                         ),
+                     status = "experimental", 
+                     survival = FALSE,
+                     discrete = TRUE,
+                     link = c("default", "logit", "probit"),
+                     pdf = "nmix"
+                     ),
+
+                 nmixnb = list(
+                     hyper = list(
+                         theta1 = list(
+                             hyperid =  101121,
+                             name = "beta1",
+                             short.name = "beta1",
+                             initial = log(10),
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 0.5),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+
+                         theta2 = list(
+                             hyperid =  101122,
+                             name = "beta2",
+                             short.name = "beta2",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+                         
+                         theta3 = list(
+                             hyperid =  101123,
+                             name = "beta3",
+                             short.name = "beta3",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                         ),
+                         
+                         theta4 = list(
+                             hyperid =  101124,
+                             name = "beta4",
+                             short.name = "beta4",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ),
+
+                         theta5 = list(
+                             hyperid =  101125,
+                             name = "beta5",
+                             short.name = "beta5",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "normal",
+                             param = c(0, 1),
+                             to.theta = function(x) x, 
+                             from.theta = function(x) x
+                             ), 
+                         
+                         theta6 = list(
+                             hyperid =  101126,
+                             name = "overdispersion",
+                             short.name = "overdispersion",
+                             initial = 0,
+                             fixed = FALSE,
+                             prior = "pc.gamma",
+                             param = 7,
+                             to.theta = function(x) log(x), 
+                             from.theta = function(x) exp(x)
+                             )
+                         ),
+                     status = "experimental", 
+                     survival = FALSE,
+                     discrete = TRUE,
+                     link = c("default", "logit", "probit"),
+                     pdf = "nmixnb"
+                     ),
+
+                 gp = list(
+                     hyper = list(
+                         theta = list(
+                             hyperid =  101201,
+                             name = "shape",
+                             short.name = "xi",
+                             initial = log(0.1),
+                             fixed = FALSE,
+                             prior = "loggamma",
+                             param = c(1, 15), 
+                             to.theta = function(x) log(x), 
+                             from.theta = function(x) exp(x)
+                         )
+                     ),
+                     status = "experimental", 
+                     survival = FALSE,
+                     discrete = TRUE,
+                     link = c("default", "log"), 
+                     pdf = "genPareto"
+                 ),
+
                  logperiodogram = list(
                      hyper = list(
                          ),
@@ -6543,6 +6724,16 @@
 		 pc.range = list(
                      nparameters = 2L,
                      pdf = NA
+                 ), 
+
+		 pc.gamma = list(
+                     nparameters = 1L,
+                     pdf = "pc.gamma"
+                 ), 
+
+		 pc.mgamma = list(
+                     nparameters = 1L,
+                     pdf = "pc.gamma"
                  ), 
 
                  ## this is the generic one,  which is case-spesific and possibly adaptive

@@ -170,7 +170,7 @@
 `inla.set.f.default` =
     function(...)
 {
-    list(diagonal = .Machine$double.eps^0.3833) ## almost 1e-6 on my computer
+    list(diagonal = .Machine$double.eps^0.319) ## almost 1e-5 on my computer
 }
 
 
@@ -370,8 +370,8 @@
         ##:ARGUMENT: dz Numerical The step-length in the standarised scale for the integration of the hyperparameters. Default 0.75.
         dz=0.75,
 
-        ##:ARGUMENT: diff.logdens Numerical The difference of the log.density for the hyperpameters to stop numerical integration using int.strategy='grid'. Default 4.
-        diff.logdens=4,
+        ##:ARGUMENT: diff.logdens Numerical The difference of the log.density for the hyperpameters to stop numerical integration using int.strategy='grid'. Default 6.
+        diff.logdens=6,
 
         ##:ARGUMENT: print.joint.hyper Logical If TRUE, the store also the joint distribution of the hyperparameters (without any costs). Default TRUE.
         print.joint.hyper=TRUE,
@@ -607,6 +607,9 @@
 
         ##:ARGUMENT: constr A boolean variable; shall the  'model' be constrained to sum to zero?
         constr = TRUE,
+
+        ##:ARGUMENT: diagonal An extra constant added to the diagonal of the precision matrix
+        diagonal = NULL,
 
         ##:ARGUMENT: n.intervals Number of intervals in the baseline hazard. (Default 15)
         n.intervals = 15,
