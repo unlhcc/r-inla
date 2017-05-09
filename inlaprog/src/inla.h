@@ -56,7 +56,7 @@ __BEGIN_DECLS
 #define FIFO_PUT "inla-mcmc-fifo-put"
 #define FIFO_GET_DATA "inla-mcmc-fifo-get-data"
 #define FIFO_PUT_DATA "inla-mcmc-fifo-put-data"
-#define L_NMIX_MMAX  (5L)				       /* the same number is in models.R */
+#define L_NMIX_MMAX  (10L)				       /* the same number is in models.R */
 
 /* 
  *
@@ -94,6 +94,7 @@ typedef enum {
 	INLA_MODE_FINN,
 	INLA_MODE_GRAPH,
 	INLA_MODE_R,
+	INLA_MODE_FGN, 
 	INLA_MODE_TESTIT = 999
 } inla_mode_tp;
 
@@ -545,6 +546,7 @@ typedef enum {
 	P_PC_FGN_H,
 	P_PC_GAMMA, 
 	P_PC_MGAMMA, 
+	P_PC_GAMMACOUNT, 
 	P_REF_AR,					       /* Reference prior for AR(p) for p=1,2,3 */
 	P_INVALID,
 	G_EXCHANGEABLE = 3000,				       /* group models */
@@ -1424,6 +1426,7 @@ double priorfunc_pc_matern(double *x, double *parameters);
 double priorfunc_pc_range(double *x, double *parameters);
 double priorfunc_pc_gamma(double *x, double *parameters);
 double priorfunc_pc_mgamma(double *x, double *parameters);
+double priorfunc_pc_gammacount(double *x, double *parameters);
 double priorfunc_ref_ar(double *x, double *parameters);
 double priorfunc_wishart(int dim, double *x, double *parameters);
 double priorfunc_wishart1d(double *x, double *parameters);
@@ -1443,6 +1446,7 @@ int ar_marginal_distribution(int p, double *pacf, double *prec, double *Q);
 int ar_pacf2phi(int p, double *pacf, double *phi);
 int ar_phi2pacf(int p, double *phi, double *pacf);
 int ar_test1();
+int inla_fgn(char *H_arg, char *outfile);
 int count_f(inla_tp * mb, inla_component_tp id);
 int find_f(inla_tp * mb, inla_component_tp id);
 int find_tag(inla_tp * mb, const char *name);
