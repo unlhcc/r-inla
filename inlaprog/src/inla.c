@@ -1,7 +1,6 @@
-
 /* inla.c
  * 
- * Copyright (C) 2007-2016 Havard Rue
+ * Copyright (C) 2007-2017 Havard Rue
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -3433,12 +3432,21 @@ int inla_read_data_likelihood(inla_tp * mb, dictionary * ini, int sec)
 		break;
 
 	case L_POISSON:
-	case L_QPOISSON:
 		idiv = 3;
 		a[0] = ds->data_observations.E = Calloc(mb->predictor_ndata, double);
 		break;
 
 	case L_CENPOISSON:
+		idiv = 3;
+		a[0] = ds->data_observations.E = Calloc(mb->predictor_ndata, double);
+		break;
+
+	case L_CONTPOISSON:
+		idiv = 3;
+		a[0] = ds->data_observations.E = Calloc(mb->predictor_ndata, double);
+		break;
+
+	case L_QCONTPOISSON:
 		idiv = 3;
 		a[0] = ds->data_observations.E = Calloc(mb->predictor_ndata, double);
 		break;
@@ -4707,10 +4715,82 @@ int loglikelihood_poisson(double *logll, double *x, int m, int idx, double *x_ve
 #undef logE
 	return GMRFLib_SUCCESS;
 }
-int loglikelihood_qpoisson(double *logll, double *x, int m, int idx, double *x_vec, void *arg)
+
+double eval_log_contpoisson(double y, double lambda)
 {
-	/*
-	 * y ~ Poisson(lambda) where lambda is computed from that E*exp(eta) is the quantile
+	// use that f.cont(x+1/2) approx f.poisson(x) for integer x's. I wasn't able to get the incomplete_gamma version
+	// accurate enough to work. maybe the connection with the Gamma-distribution is a nice way to go?
+#define R 3
+#define L 5
+#define LEN (R+L+2)
+	int i, istart, iy, low, high, len;
+	double work[2*LEN], *xx, *yy, lnormc, lval;
+	GMRFLib_spline_tp *spline;
+	
+	lnormc = gsl_sf_lnfact((unsigned int) y);
+	low = IMAX(0, (int)y - L);
+	high = (int)y + R;
+	len = high - low + 1;
+	xx = work;
+	yy = work + LEN;
+
+	if (low == 0) {
+		xx[0] = 0.0;
+		yy[0] = log(DBL_EPSILON);
+		istart = 1;
+		len++;
+	} else {
+		istart = 0;
+	}
+	
+	for(iy = low, i=istart;  iy <= high; iy++, i++) {
+		xx[i] = iy + 0.5;
+		yy[i] = iy * log(lambda) - lambda - lnormc;
+	}
+	spline = inla_spline_create(xx, yy, len);
+	lval = inla_spline_eval(y, spline);
+	inla_spline_free(spline);
+#undef L
+#undef R
+#undef LEN	
+
+	return (lval);
+}
+int loglikelihood_contpoisson(double *logll, double *x, int m, int idx, double *x_vec, void *arg)
+{
+	/* 
+	 * y ~ ContPoisson(E*exp(x))
+	 */
+	if (m == 0) {
+		return GMRFLib_LOGL_COMPUTE_CDF;
+	}
+
+	int i;
+	Data_section_tp *ds = (Data_section_tp *) arg;
+	double y = ds->data_observations.y[idx], E = ds->data_observations.E[idx], lambda;
+
+	LINK_INIT;
+	if (m > 0) {
+		for (i = 0; i < m; i++) {
+			lambda = E * PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			logll[i] = eval_log_contpoisson(y, lambda);
+		}
+	} else {
+		// slight inconsistency, as we use the 'exact' expression here, and an (good) approximation above.
+		double normc = exp(gsl_sf_lngamma(y));
+		for (i = 0; i < -m; i++) {
+			lambda = E * PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			logll[i] = gsl_sf_gamma_inc(y, lambda)/normc;
+		}
+	}
+
+	LINK_END;
+	return GMRFLib_SUCCESS;
+}
+int loglikelihood_qcontpoisson(double *logll, double *x, int m, int idx, double *x_vec, void *arg)
+{
+	/* 
+	 * y ~ ContPoisson(E*exp(x)), also accept E=0, giving the likelihood y * x.  quantile version
 	 */
 	if (m == 0) {
 		return GMRFLib_LOGL_COMPUTE_CDF;
@@ -4718,34 +4798,26 @@ int loglikelihood_qpoisson(double *logll, double *x, int m, int idx, double *x_v
 
 	int i, id = omp_get_thread_num() * GMRFLib_MAX_THREADS + GMRFLib_thread_id;
 	Data_section_tp *ds = (Data_section_tp *) arg;
-	double y = ds->data_observations.y[idx], E = ds->data_observations.E[idx];
-	double normc = gsl_sf_lnfact((unsigned int) y), lambda, q;
+	double y = ds->data_observations.y[idx], E = ds->data_observations.E[idx], lambda, q;
 
 	LINK_INIT;
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
 			q = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
-			lambda = E * exp(inla_spline_eval(log(q), ds->data_observations.qpoisson_func[id]));
-			logll[i] = y * log(lambda) - lambda - normc;
+			lambda = E * exp(inla_spline_eval(log(q), ds->data_observations.qcontpoisson_func[id]));
+			logll[i] = eval_log_contpoisson(y, lambda);
 		}
 	} else {
+		// slight inconsistency, as we use the 'exact' expression here, and an (good) approximation above.
+		double normc = exp(gsl_sf_lngamma(y));
 		for (i = 0; i < -m; i++) {
 			q = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
-			lambda = E * exp(inla_spline_eval(log(q), ds->data_observations.qpoisson_func[id]));
-			if (ISZERO(lambda)) {
-				if (ISZERO(y)) {
-					logll[i] = 1.0;
-				} else {
-					assert(!ISZERO(y));
-				}
-			} else {
-				logll[i] = gsl_cdf_poisson_P((unsigned int) y, lambda);
-			}
+			lambda = E * exp(inla_spline_eval(log(q), ds->data_observations.qcontpoisson_func[id]));
+			logll[i] = gsl_sf_gamma_inc(y, lambda)/normc;
 		}
 	}
 
 	LINK_END;
-#undef logE
 	return GMRFLib_SUCCESS;
 }
 int loglikelihood_cenpoisson(double *logll, double *x, int m, int idx, double *x_vec, void *arg)
@@ -9681,9 +9753,12 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 	} else if (!strcasecmp(ds->data_likelihood, "POISSON")) {
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_poisson;
 		ds->data_id = L_POISSON;
-	} else if (!strcasecmp(ds->data_likelihood, "QPOISSON")) {
-		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_qpoisson;
-		ds->data_id = L_QPOISSON;
+	} else if (!strcasecmp(ds->data_likelihood, "QCONTPOISSON")) {
+		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_qcontpoisson;
+		ds->data_id = L_QCONTPOISSON;
+	} else if (!strcasecmp(ds->data_likelihood, "CONTPOISSON")) {
+		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_contpoisson;
+		ds->data_id = L_CONTPOISSON;
 	} else if (!strcasecmp(ds->data_likelihood, "CENPOISSON")) {
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_cenpoisson;
 		ds->data_id = L_CENPOISSON;
@@ -10017,11 +10092,23 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 		break;
 
 	case L_POISSON:
-	case L_QPOISSON:
 		for (i = 0; i < mb->predictor_ndata; i++) {
 			if (ds->data_observations.d[i]) {
 				if (ds->data_observations.E[i] < 0.0 || ds->data_observations.y[i] < 0.0) {
 					GMRFLib_sprintf(&msg, "%s: Poisson data[%1d] (e,y) = (%g,%g) is void\n", secname, i,
+							ds->data_observations.E[i], ds->data_observations.y[i]);
+					inla_error_general(msg);
+				}
+			}
+		}
+		break;
+
+	case L_CONTPOISSON:
+	case L_QCONTPOISSON:
+		for (i = 0; i < mb->predictor_ndata; i++) {
+			if (ds->data_observations.d[i]) {
+				if (ds->data_observations.E[i] < 0.0 || ds->data_observations.y[i] <= 0.0) {
+					GMRFLib_sprintf(&msg, "%s: ContPoisson data[%1d] (e,y) = (%g,%g) is void\n", secname, i,
 							ds->data_observations.E[i], ds->data_observations.y[i]);
 					inla_error_general(msg);
 				}
@@ -10435,16 +10522,18 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 
 	case L_POISSON:
 		break;
+		
+	case L_CONTPOISSON:
+		break;
 
-	case L_QPOISSON:
+	case L_QCONTPOISSON:
 		ds->data_observations.quantile = iniparser_getdouble(ini, inla_string_join(secname, "QUANTILE"), 0.5);
 		if (mb->verbose) {
 			printf("\t\tquantile = [%g]\n", ds->data_observations.quantile);
 		}
-		ds->data_observations.qpoisson_func =
+		ds->data_observations.qcontpoisson_func =
 		    inla_qcontpois_func(ds->data_observations.quantile, ISQR(GMRFLib_MAX_THREADS));
 		break;
-
 
 	case L_CENPOISSON:
 		/*
@@ -22981,7 +23070,8 @@ double extra(double *theta, int ntheta, void *argument)
 			case L_EXPONENTIAL:
 			case L_EXPONENTIALSURV:
 			case L_POISSON:
-			case L_QPOISSON:
+			case L_CONTPOISSON:
+			case L_QCONTPOISSON:
 				/*
 				 * nothing to do
 				 */
@@ -29720,6 +29810,20 @@ int inla_fgn(char *infile, char *outfile)
 int testit(int argc, char **argv)
 {
 	if (1) {
+		double x;
+		double lambda = 1.2345;
+		P(lambda);
+		for(x = 0.1; x < 10;  x += 0.1)
+		{
+			printf("F(%g) = %.12g\n", x, gsl_sf_gamma_inc_Q(x, lambda));
+			printf("F(%g) = %.12g\n", x, gsl_sf_gamma_inc(x, lambda)/gsl_sf_gamma(x));
+			printf("F(%g) = %.12g\n", x, gsl_sf_gamma_inc(x, lambda)/exp(gsl_sf_lngamma(x)));
+		}
+		exit(0);
+	}
+	
+
+	if (0) {
 		double lambda = 1.234;
 		double x;
 		for (x = -5; x < 5; x += 0.1) {
