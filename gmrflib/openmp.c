@@ -19,12 +19,12 @@
  *
  * The author's contact information:
  *
- *       H{\aa}vard Rue
- *       Department of Mathematical Sciences
- *       The Norwegian University of Science and Technology
- *       N-7491 Trondheim, Norway
- *       Voice: +47-7359-3533    URL  : http://www.math.ntnu.no/~hrue  
- *       Fax  : +47-7359-3524    Email: havard.rue@math.ntnu.no
+ *        Haavard Rue
+ *        CEMSE Division
+ *        King Abdullah University of Science and Technology
+ *        Thuwal 23955-6900, Saudi Arabia
+ *        Email: haavard.rue@kaust.edu.sa
+ *        Office: +966 (0)12 808 0640
  *
  */
 
@@ -143,7 +143,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = ntmax;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -167,7 +167,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = IMIN(*nhyper + 1, ntmax);
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -191,7 +191,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = ntmax;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -215,7 +215,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = ntmax;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -239,7 +239,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = ntmax;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -263,7 +263,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = *nhyper;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);
@@ -302,7 +302,7 @@ int GMRFLib_openmp_implement_strategy(GMRFLib_openmp_place_tp place, void *arg)
 			break;
 		case GMRFLib_OPENMP_STRATEGY_HUGE:
 			nt = ntmax;
-			nested = 1;
+			nested = 0;
 			break;
 		default:
 			assert(0 == 1);

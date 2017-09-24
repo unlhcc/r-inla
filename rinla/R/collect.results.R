@@ -1018,12 +1018,28 @@ inla.internal.experimental.mode = FALSE
             dev.e = NULL
         }
 
+        file=paste(results.dir, .Platform$file.sep,"dic", .Platform$file.sep,"deviance_e_sat.dat", sep="")
+        if (inla.is.fmesher.file(file)) {
+            dev.e.sat = c(inla.read.fmesher.file(file))
+            dev.e.sat[is.nan(dev.e.sat)] = NA
+        } else {
+            dev.e.sat = NULL
+        }
+
         file=paste(results.dir, .Platform$file.sep,"dic", .Platform$file.sep,"e_deviance.dat", sep="")
         if (inla.is.fmesher.file(file)) {
             e.dev = c(inla.read.fmesher.file(file))
             e.dev[is.nan(e.dev)] = NA
         } else {
             e.dev = NULL
+        }
+
+        file=paste(results.dir, .Platform$file.sep,"dic", .Platform$file.sep,"e_deviance_sat.dat", sep="")
+        if (inla.is.fmesher.file(file)) {
+            e.dev.sat = c(inla.read.fmesher.file(file))
+            e.dev.sat[is.nan(e.dev.sat)] = NA
+        } else {
+            e.dev.sat = NULL
         }
 
         f.idx = NULL
@@ -1040,6 +1056,7 @@ inla.internal.experimental.mode = FALSE
         }
 
         local.dic = 2.0*e.dev - dev.e
+        local.dic.sat = 2.0*e.dev.sat - dev.e.sat
         local.p.eff = e.dev - dev.e
         fam.dic = dic.values[4L]
         fam.p.eff = dic.values[3L]
@@ -1047,10 +1064,12 @@ inla.internal.experimental.mode = FALSE
         if (!is.null(f.idx) && !all(is.na(f.idx))) {
             n.fam = max(f.idx, na.rm = TRUE)
             fam.dic = numeric(n.fam)
+            fam.dic.sat = numeric(n.fam)
             fam.p.eff = numeric(n.fam)
             for(i in 1:n.fam) {
                 idx = which(f.idx == i)
                 fam.dic[i] = sum(local.dic[idx])
+                fam.dic.sat[i] = sum(local.dic.sat[idx])
                 fam.p.eff[i] = sum(local.p.eff[idx])
             }
         }
@@ -1060,10 +1079,15 @@ inla.internal.experimental.mode = FALSE
                 "p.eff"= dic.values[3L],
                 "mean.deviance" = dic.values[1L],
                 "deviance.mean" = dic.values[2L], 
+                "dic.sat" = dic.values[4L+4L],
+                "mean.deviance.sat" = dic.values[4L + 1L],
+                "deviance.mean.sat" = dic.values[4L + 2L], 
                 "family.dic" = fam.dic, 
+                "family.dic.sat" = fam.dic.sat, 
                 "family.p.eff" = fam.p.eff, 
                 "family" = f.idx, 
                 "local.dic" = local.dic, 
+                "local.dic.sat" = local.dic.sat, 
                 "local.p.eff" = local.p.eff)
     } else {
         dic = NULL
@@ -1419,10 +1443,10 @@ inla.internal.experimental.mode = FALSE
         summary.linear.predictor = as.data.frame(dd)
 
         if (A) {
-            rownames(summary.linear.predictor) = c(inla.namefix(paste("Apredictor.", inla.num(1L:nA), sep="")),
-                            inla.namefix(paste("predictor.", inla.num(1:n), sep="")))
+            rownames(summary.linear.predictor) = c(inla.namefix(paste("APredictor.", inla.num(1L:nA), sep="")),
+                            inla.namefix(paste("Predictor.", inla.num(1:n), sep="")))
         } else {
-            rownames(summary.linear.predictor) = inla.namefix(paste("predictor.", inla.num(1L:size.info$Ntotal), sep=""))
+            rownames(summary.linear.predictor) = inla.namefix(paste("Predictor.", inla.num(1L:size.info$Ntotal), sep=""))
         }
         
         if (return.marginals.predictor) {
@@ -1434,10 +1458,10 @@ inla.internal.experimental.mode = FALSE
             rm(xx)
             if (!is.null(rr)) {
                 if (A) {
-                    names(rr) = c(inla.namefix(paste("Apredictor.", inla.num(1L:nA), sep="")),
-                                 inla.namefix(paste("predictor.", inla.num(1L:n), sep="")))
+                    names(rr) = c(inla.namefix(paste("APredictor.", inla.num(1L:nA), sep="")),
+                                 inla.namefix(paste("Predictor.", inla.num(1L:n), sep="")))
                 } else {
-                    names(rr) = inla.namefix(paste("predictor.", as.character(1L:length(rr)), sep=""))
+                    names(rr) = inla.namefix(paste("Predictor.", as.character(1L:length(rr)), sep=""))
                 }
                 names.rr = names(rr)
                 for(i in 1L:length(rr)) {
@@ -1509,10 +1533,10 @@ inla.internal.experimental.mode = FALSE
        
             colnames(dd) = inla.namefix(col.nam)
             if (A) {
-                rownames(dd) = c(inla.namefix(paste("fitted.Apredictor.", inla.num(1L:nA), sep="")),
-                                inla.namefix(paste("fitted.predictor.", inla.num(1L:n), sep="")))
+                rownames(dd) = c(inla.namefix(paste("fitted.APredictor.", inla.num(1L:nA), sep="")),
+                                inla.namefix(paste("fitted.Predictor.", inla.num(1L:n), sep="")))
             } else {
-                rownames(dd) = inla.namefix(paste("fitted.predictor.", inla.num(1L:n), sep=""))
+                rownames(dd) = inla.namefix(paste("fitted.Predictor.", inla.num(1L:n), sep=""))
             }
             summary.fitted.values = as.data.frame(dd)
 
@@ -1523,10 +1547,10 @@ inla.internal.experimental.mode = FALSE
                 rm(xx)
                 if (!is.null(rr)) {
                     if (A) {
-                        names(rr) = c(inla.namefix(paste("fitted.Apredictor.", inla.num(1L:nA), sep="")),
-                                     inla.namefix(paste("fitted.predictor.", inla.num(1:n), sep="")))
+                        names(rr) = c(inla.namefix(paste("fitted.APredictor.", inla.num(1L:nA), sep="")),
+                                     inla.namefix(paste("fitted.Predictor.", inla.num(1:n), sep="")))
                     } else {
-                        names(rr) = inla.namefix(paste("fitted.predictor.", inla.num(1L:length(rr)), sep=""))
+                        names(rr) = inla.namefix(paste("fitted.Predictor.", inla.num(1L:length(rr)), sep=""))
                     }
                     names.rr = names(rr)
                     for(i in 1L:length(rr)) {
@@ -1592,7 +1616,6 @@ inla.internal.experimental.mode = FALSE
             else
                 model.random[i] = inla.trim(readLines(modelname, n=1L))
         }
-        
 
         summary.random = list()
         summary.random[[n.random]] = NA
@@ -1613,7 +1636,7 @@ inla.internal.experimental.mode = FALSE
             file= paste(results.dir, .Platform$file.sep, random[i], sep="")
             dir.random = dir(file)
 
-            if (length(dir.random) > 4L) {
+            if (length(dir.random) > 5L) {
                 dd = matrix(inla.read.binary.file(file=paste(file, .Platform$file.sep,"summary.dat", sep="")), ncol=3L, byrow=TRUE)
                 col.nam = c("ID","mean","sd")
                 ##read quantiles if existing
