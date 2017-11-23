@@ -2,6 +2,7 @@
 ## Export: inla.rgeneric.iid.model 
 ## Export: inla.rgeneric.define
 ## Export: inla.rgeneric.wrapper
+## Export: inla.rgeneric.q
 
 ##!\name{rgeneric.define}
 ##!\alias{rgeneric}
@@ -13,6 +14,8 @@
 ##!\alias{inla.rgeneric.iid.model}
 ##!\alias{rgeneric.wrapper}
 ##!\alias{inla.rgeneric.wrapper}
+##!\alias{rgeneric.q}
+##!\alias{inla.rgeneric.q}
 ##!
 ##!\title{rgeneric models}
 ##!
@@ -29,11 +32,15 @@
 ##!inla.rgeneric.wrapper(
 ##!        cmd = c("graph", "Q", "mu", "initial", "log.norm.const", "log.prior", "quit"),
 ##!        model, theta = NULL)
+##!inla.rgeneric.q(
+##!        rmodel, 
+##!        cmd = c("graph", "Q", "mu", "initial", "log.norm.const", "log.prior", "quit"),
+##!        model, theta = NULL)
 ##!}
 ##!
 ##!\arguments{
-##!
 ##!  \item{model}{The definition of the model; see \code{inla.rgeneric.ar1.model}}
+##!  \item{rmodel}{The rgeneric model-object, the output of \code{inla.rgeneric.define}}
 ##!  \item{debug}{Logical. Turn on/off debugging}
 ##!  \item{cmd}{An allowed request}
 ##!  \item{theta}{Values of theta}
@@ -264,6 +271,7 @@
     rmodel = list(
         f = list(
             model = "rgeneric", 
+            n = dim(model(cmd="graph", theta = NULL))[1], 
             rgeneric = list(
                 definition = if (TRUE) {
                                  model
@@ -319,9 +327,9 @@
         len = length(Q@i[idx])
         result = c(n, len, Q@i[idx], Q@j[idx], Q@x[idx])
     } else if (cmd %in% "graph") {
-        G = inla.as.sparse(res)
+        diag(res) = 1
+        G = inla.as.sparse(res, zeros.rm = TRUE)
         stopifnot(dim(G)[1L] == dim(G)[2L])
-        diag(G) = 1
         n = dim(G)[1L]
         idx = which(G@i <= G@j)
         len = length(G@i[idx])
@@ -351,4 +359,67 @@
     }
 
     return (as.numeric(result))
+}
+
+
+`inla.rgeneric.q` = function(rmodel,
+                             cmd = c("graph", "Q", "mu", "initial", "log.norm.const",
+                                     "log.prior", "quit"),
+                             theta = NULL) 
+{
+    if (missing(cmd)) {
+        stop("A value for argument 'cmd' is required.")
+    }
+    cmd = match.arg(cmd)
+    rmodel.orig = rmodel
+    if (is.character(rmodel)) {
+        rmodel = get(rmodel, envir = parent.frame())
+    }
+    if (!inherits(rmodel, "inla.rgeneric")) {
+        stop("Argument 'rmodel' is not of class 'inla.rgeneric' (usually the output of 'inla.rgeneric.define')")
+    }
+    func = rmodel$f$rgeneric$definition
+
+    if (cmd %in% c("Q", "mu", "log.norm.const", "log.prior")) {
+        ## for these we need values of 'theta': check that the length is correct
+        initial = do.call(what = func, args = list(cmd = "initial", theta = NULL))
+        if (length(initial) != length(theta)) {
+            stop(paste0("Length of argument theta: ",  length(theta),
+                        ", does not match the length of the initial values in 'rmodel': ", length(initial)))
+        }
+        ## just to make sure nothing else of length zero is passed
+        if (length(initial) == 0)
+            theta = NULL
+    } else {
+        theta = NULL
+    }
+
+    res = do.call(what = func, args = list(cmd = cmd, theta = theta))
+    if (cmd %in% c("Q", "graph")) {
+        ## since only the upper triangular matrix is required return from 'do.call', then make
+        ## sure its symmetric and that diag(Graph) = 1
+        if (cmd %in% "Q") {
+            Q = inla.as.sparse(res)
+        } else {
+            diag(res) = 1
+            Q = inla.as.sparse(res, zeros.rm = TRUE)
+            Q[Q != 0] = 1
+        }
+        n = dim(Q)[1]
+        idx.eq = which(Q@i == Q@j)
+        idx.gt = which(Q@i < Q@j)
+        Q = sparseMatrix(i = c(Q@i[idx.eq], Q@i[idx.gt], Q@j[idx.gt]),
+                         j = c(Q@j[idx.eq], Q@j[idx.gt], Q@i[idx.gt]),
+                         x = c(Q@x[idx.eq], Q@x[idx.gt], Q@x[idx.gt]),
+                         index1 = FALSE, 
+                         dims = c(n, n),
+                         giveCsparse = FALSE)
+        return (Q)
+    } else if (cmd %in% c("mu", "initial", "log.norm.const", "log.prior")) {
+        return (c(as.numeric(res)))
+    } else if (cmd %in% "quit") {
+        return (NULL)
+    } else {
+        stop(paste("Unknown command", cmd))
+    }
 }
