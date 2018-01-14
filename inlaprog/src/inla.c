@@ -6151,7 +6151,7 @@ int loglikelihood_nmix(double *logll, double *x, int m, int idx, double *x_vec, 
 		return GMRFLib_SUCCESS;
 	}
 
-	int i, j, k, status;
+	int i, j, k;
 	Data_section_tp *ds = (Data_section_tp *) arg;
 	int n, nmax, ny;
 	double *y, log_lambda, lambda, normc_poisson, fac, tt, tmp, p;
@@ -6186,7 +6186,7 @@ int loglikelihood_nmix(double *logll, double *x, int m, int idx, double *x_vec, 
 			p = DMAX(0.0, DMIN(1.0, p));
 			logll[i] = n * log_lambda - lambda - normc_poisson;
 			for (j = 0; j < ny; j++) {
-				status = gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y[j], &res);
+				int status = gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y[j], &res);
 				logll[i] += res.val + y[j] * log(p) + (n - y[j]) * log(1.0 - p);
 			}
 			tt = lambda * pow(1.0 - p, (double) ny);
@@ -6218,7 +6218,7 @@ int loglikelihood_nmixnb(double *logll, double *x, int m, int idx, double *x_vec
 		return GMRFLib_SUCCESS;
 	}
 
-	int i, j, k, status;
+	int i, j, k;
 	Data_section_tp *ds = (Data_section_tp *) arg;
 	int n, nmax, ny;
 	double *y, log_lambda, lambda, normc_nb, fac, tt, tmp, p, q, size;
@@ -6255,7 +6255,7 @@ int loglikelihood_nmixnb(double *logll, double *x, int m, int idx, double *x_vec
 			q = size / (size + lambda);
 			logll[i] = normc_nb + size * log(q) + n * log(1.0 - q);
 			for (j = 0; j < ny; j++) {
-				status = gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y[j], &res);
+				int status = gsl_sf_lnchoose_e((unsigned int) n, (unsigned int) y[j], &res);
 				logll[i] += res.val + y[j] * log(p) + (n - y[j]) * log(1.0 - p);
 			}
 			tt = lambda * sqrt(1.0 + lambda / size) * pow(1.0 - p, (double) ny);
@@ -25171,12 +25171,11 @@ double extra(double *theta, int ntheta, void *argument)
 			SET_GROUP_RHO(nt);
 
 			/*
-			 * n is the small length 
+			 * n is the small length. yes, the total length is N=dim*n
 			 */
 			double n = (double) (mb->f_n[i] / dim);	/* YES! */
-			val += mb->f_nrep[i] * (normc_g + gcorr * (LOG_NORMC_GAUSSIAN * dim * (n - mb->f_rankdef[i])	/* yes, the * total *
-															 * length * is * N=dim*n */
-								   +(n - mb->f_rankdef[i]) / 2.0 * logdet));
+			val += mb->f_nrep[i] * (normc_g + gcorr * (LOG_NORMC_GAUSSIAN * dim * (n - mb->f_rankdef[i])
+								   + (n - mb->f_rankdef[i]) / 2.0 * logdet));
 			if (fail) {
 				val += PENALTY;
 			}
@@ -25583,16 +25582,18 @@ double extra(double *theta, int ntheta, void *argument)
 #undef NOT_FIXED
 	return val;
 }
+
 double inla_compute_initial_value(int idx, GMRFLib_logl_tp * loglfunc, double *x_vec, void *arg)
 {
 	/*
-	 * solve arg min logl(x[i]) - prec * 0.5*x[i]^2. But we have no option of what PREC is, so I set it to 10.0
+	 * solve arg min logl(x[i]) - prec * 0.5*(x[i]-mean)^2. But we have no option of what PREC is, so I set it to 10.0
 	 */
-	double prec = 10.0, x, xnew, f, deriv, dderiv, arr[3], xarr[3], eps = 1.0e-4, steplen = 1.0e-4;
+	Data_section_tp *ds = (Data_section_tp *) arg;
+	double prec = 10.0, x, xnew, f, deriv, dderiv, arr[3], xarr[3], eps = 1.0e-4, steplen = 1.0e-4, mean = -OFFSET(idx);
 	int niter = 0, compute_deriv, retval, niter_max = 100, debug = 0, stencil = 3;
 
 	GMRFLib_thread_id = 0;				       /* yes, this is what we want! */
-	x = xnew = 0.0;
+	x = xnew = mean;
 
 	retval = loglfunc(NULL, NULL, 0, 0, NULL, NULL, NULL);
 	compute_deriv = (retval == GMRFLib_LOGL_COMPUTE_DERIVATIES || retval == GMRFLib_LOGL_COMPUTE_DERIVATIES_AND_CDF);
@@ -25604,13 +25605,13 @@ double inla_compute_initial_value(int idx, GMRFLib_logl_tp * loglfunc, double *x
 		} else {
 			GMRFLib_2order_taylor(&arr[0], &arr[1], &arr[2], 1.0, x, idx, x_vec, loglfunc, arg, &steplen, &stencil);
 		}
-		f = arr[0] - 0.5 * prec * SQR(x);
-		deriv = arr[1] - prec * x;
+		f = arr[0] - 0.5 * prec * SQR((x - mean));
+		deriv = arr[1] - prec * (x - mean);
 		dderiv = DMIN(0.0, arr[2]) - prec;
 
 		xnew = x - DMIN(0.25 + niter * 0.25, 1.0) * deriv / dderiv;
 		if (debug) {
-			printf("idx %d x %.10g xnew %.10g f %.10g deriv %.10g dderiv %.10g\n", idx, x, xnew, f, deriv, dderiv);
+			printf("idx %d x %.10g xnew %.10g f %.10g deriv %.10g dderiv %.10g mean %.6g\n", idx, x, xnew, f, deriv, dderiv, mean);
 		}
 		x = xnew;
 
@@ -25618,7 +25619,7 @@ double inla_compute_initial_value(int idx, GMRFLib_logl_tp * loglfunc, double *x
 			break;
 		}
 		if (++niter > niter_max) {
-			x = 0.0;
+			x = mean;
 			break;
 		}
 	}
