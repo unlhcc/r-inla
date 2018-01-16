@@ -1440,11 +1440,22 @@ double link_qweibull(double x, map_arg_tp typ, void *param, double *cov)
 
 	case LINKINCREASING:
 	{
-		// its decreasing as its prediction is lambda in the weibull
-		return 0.0;
-
-		// this is some general code to do this
-		// return (link_qweibull(x + 1.0, INVLINK, param, cov) > link_qweibull(x, INVLINK, param, cov));
+		int ret_val = 0;
+		static int do_check[2] = { 1, 1 };
+			
+		if (do_check[lparam->variant]) {
+#pragma omp critical 
+			if (do_check[lparam->variant]) {
+				if (ret_val !=
+				    (link_qweibull(x + 1.0, INVLINK, param, cov) >
+				     link_qweibull(x, INVLINK, param, cov) ? 1 : 0)) {
+					FIXME("LINKINCREASING has error in link_qweibull");
+					exit(EXIT_FAILURE);
+				}
+				do_check[lparam->variant] = 0;
+			}
+		}
+		return (ret_val);
 	}
 		break;
 
@@ -11719,12 +11730,14 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 		}
 		break;
 
-		// we can merge all the loglogistic ones into one
 	case L_QLOGLOGISTIC:
 	case L_QLOGLOGISTICSURV:
-		GMRFLib_ASSERT(ds->data_observations.quantile > 0.0 && ds->data_observations.quantile < 1.0, GMRFLib_EPARAMETER);
 	case L_LOGLOGISTIC:
 	case L_LOGLOGISTICSURV:
+
+		if (ds->data_id == L_QLOGLOGISTIC || ds->data_id == L_QLOGLOGISTICSURV) {
+			GMRFLib_ASSERT(ds->data_observations.quantile > 0.0 && ds->data_observations.quantile < 1.0, GMRFLib_EPARAMETER);
+		}
 		assert(ds->variant == 0 || ds->variant == 1);
 		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL"), 0.0);	/* yes! */
 		ds->data_fixed = iniparser_getboolean(ini, inla_string_join(secname, "FIXED"), 0);
