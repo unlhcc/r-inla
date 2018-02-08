@@ -1440,11 +1440,22 @@ double link_qweibull(double x, map_arg_tp typ, void *param, double *cov)
 
 	case LINKINCREASING:
 	{
-		// its decreasing as its prediction is lambda in the weibull
-		return 0.0;
-
-		// this is some general code to do this
-		// return (link_qweibull(x + 1.0, INVLINK, param, cov) > link_qweibull(x, INVLINK, param, cov));
+		int ret_val = 0;
+		static int do_check[2] = { 1, 1 };
+			
+		if (do_check[lparam->variant]) {
+#pragma omp critical 
+			if (do_check[lparam->variant]) {
+				if (ret_val !=
+				    (link_qweibull(x + 1.0, INVLINK, param, cov) >
+				     link_qweibull(x, INVLINK, param, cov) ? 1 : 0)) {
+					FIXME("LINKINCREASING has error in link_qweibull");
+					exit(EXIT_FAILURE);
+				}
+				do_check[lparam->variant] = 0;
+			}
+		}
+		return (ret_val);
 	}
 		break;
 
@@ -6981,11 +6992,11 @@ int loglikelihood_gp(double *logll, double *x, int m, int idx, double *x_vec, do
 			logll[i] = -log(sigma) - (1.0 / xi + 1.0) * log(1.0 + xi * y / sigma);
 		}
 	} else {
-		GMRFLib_ASSERT(y_cdf == NULL, GMRFLib_ESNH);
+		double yy = (y_cdf ? *y_cdf : y);
 		for (i = 0; i < -m; i++) {
 			q = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			sigma = q * fac;
-			logll[i] = 1.0 - pow(1.0 + xi * y / sigma, -1.0 / xi);
+			logll[i] = 1.0 - pow(1.0 + xi * yy / sigma, -1.0 / xi);
 		}
 	}
 
@@ -10887,6 +10898,7 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 		/*
 		 * get options related to the genPareto
 		 */
+		GMRFLib_ASSERT(ds->data_observations.quantile > 0.0 && ds->data_observations.quantile < 1.0, GMRFLib_EPARAMETER);
 		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL"), -3.0);
 		ds->data_fixed = iniparser_getboolean(ini, inla_string_join(secname, "FIXED"), 0);
 		if (!ds->data_fixed && mb->reuse_mode) {
@@ -13746,6 +13758,11 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 			ds->link_ntheta = 0;
 			ds->predictor_invlinkfunc = link_qweibull;
 			break;
+		case L_GP:
+			ds->link_id = LINK_LOG;
+			ds->link_ntheta = 0;
+			ds->predictor_invlinkfunc = link_log;
+			break;
 		default:
 			assert(0 == 1);
 		}
@@ -16429,8 +16446,8 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 					mb->theta_dir[mb->ntheta] = msg;
 					mb->theta_from = Realloc(mb->theta_from, mb->ntheta + 1, char *);
 					mb->theta_to = Realloc(mb->theta_to, mb->ntheta + 1, char *);
-					mb->theta_from[mb->ntheta] = GMRFLib_strdup("function (x) <<NEWLINE>>log(x)");	/* they are not there... */
-					mb->theta_to[mb->ntheta] = GMRFLib_strdup("function (x) <<NEWLINE>>exp(x)");	/* .... */
+					mb->theta_from[mb->ntheta] = GMRFLib_strdup("function (x) <<NEWLINE>>exp(x)");	/* they are not there... */
+					mb->theta_to[mb->ntheta] = GMRFLib_strdup("function (x) <<NEWLINE>>log(x)");	/* .... */
 					mb->theta[mb->ntheta] = spde2_model->theta[i];
 					mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
 					mb->theta_map[mb->ntheta] = map_exp;
