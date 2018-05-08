@@ -68,7 +68,8 @@ variable, a list or the output of the function
 \item{family}{ A string indicating the likelihood
  family. The default is \code{gaussian} with identity
  link. See \code{names(inla.models()$likelihood)} for a
- list of possible alternatives.}
+ list of possible alternatives and use \code{\link{inla.doc}}
+ for detailed docs for individual families.}
 \item{contrasts}{Optional contrasts for the fixed
 effects; see \code{?lm} or \code{?glm} for details.}
 \item{data}{ A data frame or list containing the
@@ -154,9 +155,7 @@ improve the performance.}
 the 'inla' program and do not include default
 arguments. (OOPS: This is an expert option!)}
 \item{num.threads}{ Maximum number of threads the
-\code{inla}-program will use. xFor Windows this
-defaults to 1, otherwise its defaults to \code{NULL}
-(for which the system takes over control).}
+\code{inla}-program will use}
 \item{keep}{ A boolean variable indicating that the
 working files (ini file, data files and results
 files) should be kept. If TRUE and no
