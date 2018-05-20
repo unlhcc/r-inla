@@ -26,6 +26,7 @@
  *        Office: +966 (0)12 808 0640
  *
  */
+
 #ifndef HGVERSION
 #define HGVERSION
 #endif
@@ -72,6 +73,10 @@ static const char RCSId[] = HGVERSION;
 #define MATHLIB_STANDALONE 
 #define MATHLIB_FUN(_fun) _fun
 #include <Rmath.h>
+#ifdef ISNAN
+#  undef ISNAN
+#endif
+
 
 #include "GMRFLib/GMRFLib.h"
 #include "GMRFLib/GMRFLibP.h"
@@ -4679,13 +4684,40 @@ int loglikelihood_logistic(double *logll, double *x, int m, int idx, double *x_v
 	return GMRFLib_SUCCESS;
 }
 
+double inla_sn_Phi(double x, double xi, double omega, double alpha) 
+{
+	// density = 2/omega * phi((x - xi)/omega) * Phi(alpha * ((x-xi)/omega))
+
+	if (alpha == 0.0) {
+		return inla_Phi((x-xi)/omega);
+	} else {
+		double xx = (x - xi)/omega;
+		double integral = 0.0;
+		double dx = 0.1;
+		double w = 0.0;
+		double xval;
+		int i, np;
+
+		np = (int) ((x - (-7.0)) / dx);
+		np = IMAX(9, np);
+		np = (np/2) * 2 + 1;			       /* make sure its an odd number */
+		for (i = 0; i < np; i++) {
+			w = ((i == 0 || i == np-1) ? 1.0 : (w == 2.0 ? 4.0 : 2.0));
+			xval = xx - i * dx;
+			integral += w * exp(LOG_NORMC_GAUSSIAN + M_LN2 - 0.5 * SQR(xval) + inla_log_Phi(alpha * xval));
+		}
+
+		return (DMAX(0.0, DMIN(1.0, integral * dx / 3.0)));
+	}
+}
+
 int loglikelihood_skew_normal(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg)
 {
 	/*
 	 * y ~ Skew_Normal(x, stdev)
 	 */
 	if (m == 0) {
-		return 0;				       /* no features available for now */
+		return GMRFLib_LOGL_COMPUTE_CDF;
 	}
 	int i;
 	Data_section_tp *ds = (Data_section_tp *) arg;
@@ -4700,15 +4732,21 @@ int loglikelihood_skew_normal(double *logll, double *x, int m, int idx, double *
 	shape = map_rho(ds->data_observations.shape_skew_normal[GMRFLib_thread_id][0], MAP_FORWARD, NULL) * shape_max;
 
 	if (m > 0) {
-		for (i = 0; i < m; i++) {
+		for(i = 0; i < m; i++) {
 			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
 			xarg = (y - ypred) * sprec;
-			logll[i] = LOG_NORMC_GAUSSIAN + M_LOG2E + 0.5 * (lprec - SQR(xarg)) + inla_log_Phi_fast(shape * xarg);
+			logll[i] = LOG_NORMC_GAUSSIAN + M_LN2 + 0.5 * (lprec - SQR(xarg)) + inla_log_Phi_fast(shape * xarg);
 		}
 	} else {
-		GMRFLib_ASSERT(0 == 1, GMRFLib_ESNH);
-	}
+		double yy = (y_cdf ? *y_cdf : y);
 
+#pragma omp parallel for private(i, ypred, xarg)
+		for(i = 0; i < -m; i++) {
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			xarg = (yy - ypred) * sprec;
+			logll[i] = inla_sn_Phi(xarg, 0.0, 1.0, shape);
+		}
+	}
 	LINK_END;
 	return GMRFLib_SUCCESS;
 }
@@ -4724,7 +4762,7 @@ int loglikelihood_skew_normal2(double *logll, double *x, int m, int idx, double 
 #define SIGN(_x) ((_x) >= 0.0 ? 1.0 : -1.0)
 
 	if (m == 0) {
-		return 0;				       /* no features available for now */
+		return GMRFLib_LOGL_COMPUTE_CDF;
 	}
 	int i;
 	Data_section_tp *ds = (Data_section_tp *) arg;
@@ -4752,10 +4790,28 @@ int loglikelihood_skew_normal2(double *logll, double *x, int m, int idx, double 
 			xi = ypred - omega * delta * sqrt(2.0 / M_PI);
 			// xi = ypred;
 			xarg = (y - xi) / omega;
-			logll[i] = LOG_NORMC_GAUSSIAN + M_LOG2E - log(omega) - 0.5 * SQR(xarg) + inla_log_Phi_fast(alpha * xarg);
+			logll[i] = LOG_NORMC_GAUSSIAN + M_LN2 - log(omega) - 0.5 * SQR(xarg) + inla_log_Phi_fast(alpha * xarg);
 		}
 	} else {
-		GMRFLib_ASSERT(0 == 1, GMRFLib_ESNH);
+		double yy = (y_cdf ? *y_cdf : y);
+
+#pragma omp parallel for private(i, ypred, g, alpha, delta, omega, xi, xarg)
+		for(i = 0; i < -m; i++) {
+			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			if (ISZERO(skewness)) {
+				g = 0.0;
+			} else {
+				g = M_PI / (2.0 * (1.0 + pow((4.0 - M_PI) / (2.0 * ABS(skewness)), 2.0 / 3.0)));
+				g = DMIN(SKEW_MAX - GMRFLib_eps(0.75), g);
+				g = DMAX(-(SKEW_MAX - GMRFLib_eps(0.75)), g);
+			}
+			alpha = SIGN(skewness) * sqrt(g / (1.0 - g));
+			delta = alpha / sqrt(1.0 + SQR(alpha));
+			omega = sqrt(variance / (1.0 - 2.0 * SQR(delta) / M_PI));
+			xi = ypred - omega * delta * sqrt(2.0 / M_PI);
+			xarg = (yy - xi) / omega;
+			logll[i] = inla_sn_Phi(xarg, 0.0, 1.0, alpha);
+		}
 	}
 
 #undef SKEW_MAX
@@ -5588,8 +5644,8 @@ int loglikelihood_logperiodogram(double *logll, double *x, int m, int idx, doubl
 	if (m > 0) {
 		for (i = 0; i < m; i++) {
 			ypred = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
-			v = y - ypred + M_LOG2E;
-			logll[i] = -M_LOG2E + v - 0.5 * exp_taylor(v, x0, order);
+			v = y - ypred + M_LN2;
+			logll[i] = -M_LN2 + v - 0.5 * exp_taylor(v, x0, order);
 		}
 	}
 
@@ -30272,24 +30328,23 @@ int inla_fgn(char *infile, char *outfile)
 }
 int testit(int argc, char **argv)
 {
+	int test_no = -1;
+	char **args = NULL;
+	int nargs = 0, i;
+	
+	if (argc > 0) {
+		test_no = atoi(argv[0]);
+		nargs = argc -1;
+		args = &(argv[1]);
+		printf("test_no = %1d  nargs = %1d\n", test_no, nargs);
+		for(i = 0; i < nargs; i++)
+			printf("\targs[%d] = %s\n", i, args[i]);
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	if (1) {
+	switch(test_no) {
+	case -1:
+	case 0: 
+	{
 		double s, phi,  mu,  y, shape, rate, q, mmu, scale, alpha;
 		s = 1.2;
 		phi = 2.3;
@@ -30311,21 +30366,27 @@ int testit(int argc, char **argv)
 
 		exit(0);
 	}
+	break;
 
-
-	if (0) {
+	case 1: 
+	{
 		P(GMRFLib_rng_uniform());
 		P(GMRFLib_rng_uniform());
 	}
-	if (0) {
+	break;
+
+	case 2: 
+	{
 		double par[] = { 0.8, 0.5 };
 		double theta = 1.234;
 
 		P(priorfunc_pc_cor1(&theta, par));
 		exit(0);
 	}
-
-	if (0) {
+	break;
+		
+	case 3: 
+	{
 		double x;
 		double lambda = 1.2345;
 		P(lambda);
@@ -30336,9 +30397,10 @@ int testit(int argc, char **argv)
 		}
 		exit(0);
 	}
+	break;
 
-
-	if (0) {
+	case 4:
+	{
 		double lambda = 1.234;
 		double x;
 		for (x = -5; x < 5; x += 0.1) {
@@ -30346,9 +30408,11 @@ int testit(int argc, char **argv)
 		}
 		exit(0);
 	}
+	break;
+	
 
-
-	if (0) {
+	case 5:
+	{
 		GMRFLib_spline_tp **spline;
 
 		double lq;
@@ -30359,8 +30423,10 @@ int testit(int argc, char **argv)
 		}
 		exit(0);
 	}
-
-	if (0) {
+	break;
+	
+	case 6:
+	{
 		double y, lambda;
 		for (lambda = 1.1; lambda < 5.1; lambda++) {
 			for (y = 2.2; y < 8.3; y++) {
@@ -30378,8 +30444,10 @@ int testit(int argc, char **argv)
 
 		exit(0);
 	}
-
-	if (0) {
+	break;
+	
+	case 7:
+	{
 		inla_fgn_arg_tp *arg = Calloc(1, inla_fgn_arg_tp);
 
 		arg->n = 10;
@@ -30394,9 +30462,11 @@ int testit(int argc, char **argv)
 
 		exit(0);
 	}
+	break;
+	
 
-
-	if (0) {
+	case 8:
+	{
 #pragma omp critical
 		{
 #define MODEL "rgeneric.model"
@@ -30438,12 +30508,13 @@ int testit(int argc, char **argv)
 			inla_R_rgeneric(&n_out, &x_out, "quit", MODEL, ntheta, theta);
 			PPP("quit");
 		}
-
 #undef MODEL
 #undef PPP
 	}
+	break;
 
-	if (0) {
+	case 9:
+	{
 		printf("test R, source %s\n", argv[0]);
 		inla_R_source(argv[0]);
 
@@ -30462,15 +30533,10 @@ int testit(int argc, char **argv)
 
 		exit(0);
 	}
+	break;
 
-	if (0) {
-		double x;
-		for (x = -100.0; x < 100.0; x = x + 0.01) {
-			printf("x %.12g log(Phi(x)) %.12g %.12g\n", x, inla_log_Phi_fast(x), inla_log_Phi(x));
-		}
-		exit(0);
-	}
-	if (0) {
+	case 10: 
+	{
 		// checking the expression and the jacobian for this prior
 		double x, xx, xxx, dx = 0.01, sum = 0.0, parameters[2], low = -4.001, high = 4.0;
 		int i;
@@ -30521,8 +30587,10 @@ int testit(int argc, char **argv)
 		}
 		P(sum * pow(dx, 3.0));
 	}
-
-	if (0) {
+	break;
+		
+	case 11:
+	{
 		// test the new R-interface
 
 		printf("TESTIT!\n");
@@ -30545,8 +30613,10 @@ int testit(int argc, char **argv)
 
 		exit(0);
 	}
+	break;
 
-	if (0) {
+	case 12: 
+	{
 		// testing spde3
 
 		inla_spde3_tp *smodel = NULL;
@@ -30585,19 +30655,23 @@ int testit(int argc, char **argv)
 		}
 		GMRFLib_write_fmesher_file(Q, "Q", 0, -1);
 	}
-
-	if (0) {
+	break;
+		
+	case 13: 
+	{
 		GMRFLib_verify_graph_read_from_disc = GMRFLib_TRUE;
 		GMRFLib_graph_tp *graph;
 		GMRFLib_read_graph_ascii(&graph, "zones.graph");
 		exit(0);
 	}
+	break;
 
-	if (0) {
+	case 14: 
+	{
 		double a_data[] = { 0.18, 0.41, 0.14, 0.51,
-			0.60, 0.24, 0.30, 0.13,
-			0.57, 0.99, 0.97, 0.19,
-			0.96, 0.58, 0.66, 0.85
+				    0.60, 0.24, 0.30, 0.13,
+				    0.57, 0.99, 0.97, 0.19,
+				    0.96, 0.58, 0.66, 0.85
 		};
 
 		gsl_matrix_view m = gsl_matrix_view_array(a_data, 4, 4);
@@ -30610,31 +30684,40 @@ int testit(int argc, char **argv)
 
 		exit(EXIT_SUCCESS);
 	}
-
-	if (0) {
+	break;
+		
+	case 15:
+	{
 		double lambda = 10;
 		re_init(&lambda);
 	}
-	if (0) {
+	break;
+
+	case 16: 
+	{
 		ar_test1();
 		exit(EXIT_SUCCESS);
 	}
+	break;
 
-	if (0) {
+	case 17: 
+	{
 		P(bessel_Knu(0.25, 0.2));
 		P(gsl_sf_bessel_Knu(0.25, 0.2));
 		exit(EXIT_SUCCESS);
 	}
-
-
-	if (0) {
+	break;
+		
+	case 18:
+	{
 		P(re_intrinsic_discrepancy_distance_map(re_intrinsic_discrepancy_distance(0.1, 3.2)));
 		P(re_intrinsic_discrepancy_distance_map(re_intrinsic_discrepancy_distance(0.5, 3.2)));
 		exit(EXIT_SUCCESS);
 	}
+	break;
 
-
-	if (0) {
+	case 19: 
+	{
 #define GET(_int) fscanf(fp, "%d\n", &_int)
 #define GETV(_vec, _len)						\
 		if (1) {						\
@@ -30675,16 +30758,20 @@ int testit(int argc, char **argv)
 			re_print_contourLines(NULL, c);
 		}
 	}
+	break;
 
-	if (0) {
+	case 20: 
+	{
 		inla_file_contents_tp *fc;
 
 		fc = inla_read_file_contents("aa.dat");
 		inla_write_file_contents("bb.dat", fc);
 		exit(EXIT_SUCCESS);
 	}
+	break;
 
-	if (0) {
+	case 21: 
+	{
 		GMRFLib_matrix_tp *M = NULL;
 
 		int i, j, k, kk;
@@ -30735,6 +30822,60 @@ int testit(int argc, char **argv)
 		GMRFLib_matrix_free(M);
 		GMRFLib_matrix_free(N);
 	}
+	break;
+
+	case 22: 
+	{
+		double x;
+		for (x = -100.0; x < 100.0; x = x + 0.01) {
+			printf("x %.12g log(Phi(x)) %.12g %.12g\n", x, inla_log_Phi_fast(x), inla_log_Phi(x));
+		}
+		exit(0);
+	}
+	break;
+
+	case 23: 
+	{
+		// test ghq
+#define FUN2(x) SQR(x)
+#define FUN4(x) SQR(SQR(x))
+
+		double *xp, *wp, integral = 0, integral2 = 0, integral4 = 0.0;
+		int np = 150, i;
+		GMRFLib_ghq(&xp, &wp, np);
+		for(i=0; i<np; i++){
+			integral2 += wp[i] * FUN2(xp[i]);
+			integral4 += wp[i] * FUN4(xp[i]);
+			P(xp[i]);
+		}
+		printf("integral of x^2 = 1 ?  %.12f\n", integral2);
+		printf("integral of x^4 = 3 ?  %.12f\n", integral4);
+
+		double xx = 2*(GMRFLib_uniform()-0.5);
+
+		printf("compute CDF xx=%f true = %.12f\n", xx, inla_Phi(xx));
+
+		integral = 0.0;
+		for(i=0; i < np; i++) {
+			if (xp[i] < xx) {
+				integral += wp[i];
+			} else {
+				integral += wp[i] * (1.0 - (xx - xp[i-1])/(xp[i] - xp[i-1]));
+				break;
+			}
+		}
+		printf("estimate %.12f\n", integral);
+
+		exit(0);
+#undef FUN2
+#undef FUN4
+	}
+	break;
+
+	default:
+		exit(0);
+	}
+	
 
 	exit(EXIT_SUCCESS);
 }
@@ -31047,7 +31188,7 @@ int main(int argc, char **argv)
 			GMRFLib_timer_full_report(NULL);
 		exit(EXIT_SUCCESS);
 	} else if (G.mode == INLA_MODE_TESTIT) {
-		testit(argc, &(argv[optind]));
+		testit(argc-optind, &(argv[optind]));
 		if (report)
 			GMRFLib_timer_full_report(NULL);
 		exit(EXIT_SUCCESS);
