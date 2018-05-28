@@ -285,17 +285,24 @@ int GMRFLib_pardiso_init(GMRFLib_pardiso_store_tp ** store)
 	s->iparm_default = Calloc(GMRFLib_PARDISO_PLEN, int);
 	s->dparm_default = Calloc(GMRFLib_PARDISO_PLEN, double);
 	s->iparm_default[0] = 0;			       /* use default values */
-	s->iparm_default[1] = 1;			       /* use metis (v4 I think) so we can have identical solutions */
 	s->iparm_default[2] = GMRFLib_openmp->max_threads_inner;
-	s->iparm_default[4] = 0;			       /* use internal reordering */
 
 	pardisoinit(s->pt, &(s->mtype), &(s->solver), s->iparm_default, s->dparm_default, &error);
-	s->iparm_default[10] = 0;			       /* I think these are the defaults, but... */
-	s->iparm_default[12] = 0;			       /* ...we need these for the divided LDL^Tx=b solver to work */
-	s->iparm_default[20] = 0;			       /* diagonal pivoting */
-	s->iparm_default[23] = 1;			       /* two level scheduling, as... */
-	s->iparm_default[33] = 1;			       /* ...I want identical solutions (require on ipar..[1]=1 above) */
-	s->iparm_default[24] = (s->iparm_default[2] == 1 ? 0 : 1);	/* use parallel solve only if we use parallel chol */
+	assert(s->iparm_default[2] == GMRFLib_openmp->max_threads_inner);
+
+	s->iparm_default[1] = 2;			       /* use this so we can have identical solutions */
+	s->iparm_default[4] = 0;			       /* use internal reordering */
+	s->iparm_default[10] = 0;			       /* These are the default, but... */
+	s->iparm_default[12] = 0;			       /* I need these for the divided LDL^Tx=b solver to work */
+	s->iparm_default[20] = 0;			       /* Diagonal pivoting, and... */
+	s->iparm_default[23] = 1;			       /* two level scheduling, and... */
+	s->iparm_default[24] = 1; 			       /* use parallel solve, as... */
+
+	if (s->iparm_default[2] == 1) {
+		s->iparm_default[33] = 1;		       /* I want identical solutions (require ipar[1]=2 above) */
+	} else {
+		s->iparm_default[33] = 0;		       /* WORKAROUND FOR THE PARALLEL ISSUE */
+	}
 
 	if (error != 0) {
 		if (error == NOLIB_ECODE) {
@@ -319,12 +326,15 @@ int GMRFLib_pardiso_init(GMRFLib_pardiso_store_tp ** store)
 
 int GMRFLib_pardiso_setparam(GMRFLib_pardiso_flag_tp flag, GMRFLib_pardiso_store_tp * store)
 {
-	int ival7;
-
 	assert(store->done_with_init == GMRFLib_TRUE);
 	memcpy((void *) (store->pstore->iparm), (void *) (store->iparm_default), GMRFLib_PARDISO_PLEN * sizeof(int));
 	memcpy((void *) (store->pstore->dparm), (void *) (store->dparm_default), GMRFLib_PARDISO_PLEN * sizeof(double));
-	ival7 = (store->pstore->iparm[2] == 1 ? 0 : 0);	       /* 0 is the default value */
+
+	/* 
+	   workaround for the parallel issue. have to use 0 for parallel
+	 */
+	int ival7 = (store->pstore->iparm[2] > 1 ? 4 : 0);    // iterative improvements? #iterations
+
 	store->pstore->nrhs = 0;
 	store->pstore->err_code = 0;
 
@@ -576,9 +586,15 @@ int GMRFLib_pardiso_chol(GMRFLib_pardiso_store_tp * store)
 	}
 
 	if (store->pstore->err_code != 0 || store->pstore->iparm[22] > 0) {
-		printf("\nERROR not pos def matrix, #neg.eigen %d, err-code %d", store->pstore->iparm[22], store->pstore->err_code);
+		printf("\n");
+		if (store->pstore->iparm[22] > 1) {
+			printf("*** PARDISO ERROR: not pos.def matrix: %1d eigenvalues are negative.\n", store->pstore->iparm[22]);
+		} else {
+			printf("*** PARDISO ERROR: not pos.def matrix: %1d eigenvalue is negative.\n", store->pstore->iparm[22]);
+		}
+		printf("*** PARDISO ERROR: I will try to work around the problem...\n\n");
 		fflush(stdout);
-		GMRFLib_ERROR(GMRFLib_EPOSDEF);
+		return GMRFLib_EPOSDEF;
 	}
 
 	store->pstore->log_det_Q = store->pstore->dparm[32];
