@@ -18,7 +18,7 @@
   }
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
-      \item
+      \item Added function \code{inla.posterior.sample.eval}
     }
   }
   \subsection{BUG FIXES}{
@@ -43,8 +43,8 @@
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
       \item Separated the quantile link for the binomial response,
-      into individual (\texttt{model="quantile"}) and population
-	(\texttt{model="pquantile"})
+      into individual (\code{model="quantile"}) and population
+	(\code{model="pquantile"})
 
       \item Added new strategy
       \code{control.inla=list(strategy="adaptive")} which use the
