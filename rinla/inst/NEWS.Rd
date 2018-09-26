@@ -5,6 +5,7 @@
 \encoding{UTF-8}
 
 
+
 \section{CHANGES IN VERSION xx.xx.xx}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
@@ -24,6 +25,41 @@
   \subsection{BUG FIXES}{
     \itemize{
       \item 
+    }
+  }
+}
+
+
+\section{CHANGES IN VERSION xx.xx.xx}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item 
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Added option \code{verbose} to
+      \code{inla.qsample()} and \code{inla.posterior.sample()}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item 
+    }
+  }
+}
+
+
+
+\section{CHANGES IN VERSION 18.09.24}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Performance improvement using the PARDISO library
     }
   }
 }
