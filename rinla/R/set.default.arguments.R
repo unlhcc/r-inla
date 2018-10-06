@@ -151,6 +151,9 @@
         ##:ARGUMENT: hyper Definition of the hyperparameter(s) for the link model chosen
         hyper = NULL,
 
+        ##:ARGUMENT: quantile The quantile for quantile link function
+        quantile = NULL,
+
         ##:ARGUMENT: initial (OBSOLETE!) The initial value(s) for the hyperparameter(s)
         initial = NULL,
 
@@ -203,8 +206,8 @@
     ##:EXTRA: 
     ##:NAME: control.compute
     list(
-        ##:ARGUMENT: openmp.strategy The computational strategy to use: 'small', 'medium', 'large', 'huge' and 'default'. The difference is how the parallelisation is done, and is tuned for 'small'-sized models, 'medium'-sized models, etc. The default option tries to make an educated guess, but this allows to overide this selection. Default is 'default'
-        openmp.strategy = "default", ## "small", "medium", "large", "huge"
+        ##:ARGUMENT: openmp.strategy The computational strategy to use: 'small', 'medium', 'large', 'huge' and 'default'. There are also two options for the pardiso solver: 'pardiso.serial' and 'pardiso.parallel'. The difference is how the parallelisation is done, and is tuned for 'small'-sized models, 'medium'-sized models, etc. The default option tries to make an educated guess, but this allows to overide this selection. Default is 'default'
+        openmp.strategy = "default", 
 
         ##:ARGUMENT: hyperpar A boolean variable if the marginal for the hyperparameters should be computed. Default TRUE.
         hyperpar=TRUE,
@@ -233,7 +236,7 @@
         ##:ARGUMENT: config A boolean variable if the internal GMRF approximations be stored. (Default FALSE. EXPERIMENTAL)
         config=FALSE,
 
-        ##:ARGUMENT: smtp The sparse-matrix solver, one of 'smtp' (default) or 'band'
+        ##:ARGUMENT: smtp The sparse-matrix solver, one of 'default', 'taucs', 'band' or 'pardiso' (default \code{inla.getoption("smtp")})
         smtp = NULL,
 
         ##:ARGUMENT: graph A boolean variable if the graph itself should be returned. (Default FALSE.)
@@ -277,9 +280,6 @@
 
         ##:ARGUMENT: cenpoisson.I The censoring interval for the censored Poisson
         cenpoisson.I = c(-1L, -1L),
-
-        ##:ARGUMENT: quantile The quantile to be used for the quantile parameterised likelihoods (default 0.5)
-        quantile = 0.5, 
 
         ##:ARGUMENT: variant This variable is used to give options for various variants of the likelihood,  like chosing different parameterisations for example. See the relevant likelihood documentations for options (does only apply to some likelihoods).
         variant = 0L,
@@ -343,7 +343,7 @@
     ##:EXTRA: 
     ##:NAME: control.inla
     ans = list(
-        ##:ARGUMENT: strategy  Character The strategy to use for the approximations; one of 'gaussian', 'simplified.laplace' (default) or 'laplace'
+        ##:ARGUMENT: strategy  Character The strategy to use for the approximations; one of 'gaussian', 'simplified.laplace' (default), 'laplace' or 'adaptive'
         strategy="simplified.laplace",
 
         ##:ARGUMENT: int.strategy  Character The integration strategy to use; one of 'auto' (default),  'ccd', 'grid', 'eb' (empirical bayes),  'user' or 'user.std'
@@ -397,10 +397,13 @@
         ##:ARGUMENT: tolerance.x Numerical The tolerance for the change in the hyperparameters (root-mean-square) in the optimisation of the hyperparameters.
         tolerance.x = NULL, 
 
+        ##:ARGUMENT: tolerance.step Numerical The tolerance for the change in root-mean_squre in the inner Newton-like optimisation of the latent field.
+        tolerance.step = 0.0005, 
+
         ##:ARGUMENT: restart Numerical To improve the optimisation, the optimiser is restarted at the found optimum 'restart' number of times.
         restart = 0L,
 
-        ##:ARGUMENT: optimiser Character The optimiser to use; one of 'gsl', 'domin' or 'default'.
+        ##:ARGUMENT: optimiser Character The optimiser to use; one of 'gsl' or 'default'.
         optimiser = "default",
 
         ##:ARGUMENT: verbose Logical Run in verbose mode? (Default FALSE)
@@ -427,6 +430,9 @@
         ##:ARGUMENT: adapt.hessian.scale Numerical The scaling of the 'h' after each trial.
         adapt.hessian.scale = NULL, 
 
+        ##:ARGUMENT: adaptive.max Selecting \code{strategy="adaptive"} will chose the default strategy for all fixed effects and model components with length less or equal to \code{adaptive.max}, for others, the gaussian strategy will be applied.
+        adaptive.max = 10L,
+        
         ##:ARGUMENT: huge Logical If TRUE then try to do some of the internal parallisations differently. Hopefully this will be of benefite for 'HUGE' models. (Default FALSE.) [THIS OPTION IS OBSOLETE AND NOT USED!]
         huge = FALSE,
 

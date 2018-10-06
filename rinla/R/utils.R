@@ -249,13 +249,13 @@
     cat("Source files in ", dir, ". Loaded ", length(files), " files and replaced ", nfuncs, " functions.\n", sep="")
 
     if (binaries) {
-        inla.setOption("inla.call", paste(bin.path, "/", "inla", sep=""))
-        inla.setOption("fmesher.call", paste(bin.path, "/", "fmesher", sep=""))
-        cat("Define new values for 'inla.call' and 'fmesher.call': ", bin.path, "/{inla,fmesher}\n", sep="")
+        inla.setOption("inla.call", path.expand(paste(bin.path, "/", "inla", sep="")))
+        inla.setOption("fmesher.call", path.expand(paste(bin.path, "/", "fmesher", sep="")))
+        cat("Define new values for 'inla.call' and 'fmesher.call'\n", sep="")
     }
 
     ## hash the models again
-    assign("hgid", "hash it again, please!", envir = inla.get.inlaEnv())
+    assign("hgid", "(Undefined)", envir = inla.get.inlaEnv())
     assign("inla.models", NULL, envir = inla.get.inlaEnv())
     cat("Reset stored 'inla.models()' in .inlaEnv\n")
 
@@ -949,12 +949,9 @@
 ##
 `inla.mclapply` = function(..., mc.cores = NULL, parallel = TRUE)
 {
-    if (parallel && inla.require("parallel") && !inla.os("windows")) {
+    if (parallel && !inla.os("windows")) {
         if (is.null(mc.cores)) {
             mc.cores = inla.getOption("num.threads")
-            if (is.null(mc.cores)) {
-                mc.cores = parallel::detectCores()
-            }
         }
         return (parallel::mclapply(..., mc.cores = mc.cores))
     } else {
