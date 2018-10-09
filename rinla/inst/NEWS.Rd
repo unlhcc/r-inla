@@ -30,10 +30,15 @@
 }
 
 
-\section{CHANGES IN VERSION xx.xx.xx}{
+\section{CHANGES IN VERSION 18.10.09}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
-      \item 
+      \item New option \code{control.inla=list(tolerance.step=)}, to
+      control the RMS of the step-size for the inner optimization.
+      \item Changed, slightly, the initial values for the exponent in
+      the Weibull likelihood models, to a value close to zero instead of
+      zero.
+      \item New vignette about how to deal with multinomial data.
     }
   }
   \subsection{NEW FEATURES}{
