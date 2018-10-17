@@ -5,6 +5,7 @@
 \encoding{UTF-8}
 
 
+
 \section{CHANGES IN VERSION xx.xx.xx}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
@@ -18,12 +19,99 @@
   }
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
-      \item 
+      \item
     }
   }
   \subsection{BUG FIXES}{
     \itemize{
       \item 
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.10.16}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New latent model: \code{dmatern}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Improved the numerics for computing the scaling of the RW1 and RW2 models.
+    }
+  }
+}
+
+
+\section{CHANGES IN VERSION 18.10.09}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item New option \code{control.inla=list(tolerance.step=)}, to
+      control the RMS of the step-size for the inner optimization.
+      \item Changed, slightly, the initial values for the exponent in
+      the Weibull likelihood models, to a value close to zero instead of
+      zero.
+      \item New vignette about how to deal with multinomial data.
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Added option \code{verbose} to
+      \code{inla.qsample()} and \code{inla.posterior.sample()}
+    }
+  }
+}
+
+
+
+\section{CHANGES IN VERSION 18.09.24}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Performance improvement using the PARDISO library
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.09.21}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Argument \code{selection} in \code{inla.posterior.sample}
+      and \code{inla.qsample}.
+    }
+  }
+}
+
+
+\section{CHANGES IN VERSION 18.09.19}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Fix for \code{num.threads} in \code{inla.qinv()}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.09.18}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Allow better user control of sparse matrix library in
+      \code{inla.qinv()}, \code{inla.qsample()} and
+      \code{inla.posterior.sample()}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.09.14}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item New example added to \code{inla.posterior.sample()}
+      \item Slight changes in the default \code{print}, and
+      \code{summary} for an \code{inla}-object
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Fixed the issue when \code{lincomb.derived.only=FALSE} and
+      then using \code{inla.posterior.sample()}
     }
   }
 }
@@ -34,19 +122,9 @@
       \item Added 32-bit builds for windows (upon request)
     }
   }
-  \subsection{NEW FEATURES}{
-    \itemize{
-      \item
-    }
-  }
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
       \item Added function \code{inla.posterior.sample.eval()}
-    }
-  }
-  \subsection{BUG FIXES}{
-    \itemize{
-      \item 
     }
   }
 }
@@ -56,11 +134,6 @@
     \itemize{
       \item Added new function \code{inla.pardiso.check()}
       \item Added COPYRIGHTS file
-    }
-  }
-  \subsection{NEW FEATURES}{
-    \itemize{
-      \item
     }
   }
   \subsection{NEW EXPERIMENTAL FEATURES}{

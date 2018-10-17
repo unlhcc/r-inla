@@ -548,6 +548,7 @@ typedef enum {
 	F_FGN,
 	F_FGN2,
 	F_AR1C,
+	F_DMATERN,
 	P_LOGGAMMA = 2000,				       /* priors */
 	P_GAUSSIAN,
 	P_MVGAUSSIAN,
@@ -738,6 +739,20 @@ typedef struct {
 	int mix_ntheta;
 } Data_section_tp;
 
+
+typedef struct {
+	int n;
+	int dim;
+	GMRFLib_matrix_tp *locations;
+	gsl_matrix *dist;
+
+	double **log_range;
+	double **log_prec;
+	double **log_nu;
+
+	gsl_matrix **Q;
+	double **param;
+} dmatern_arg_tp;
 
 typedef struct {
 	int n;
@@ -1381,6 +1396,7 @@ double Qfunc_clinear(int i, int j, void *arg);
 double Qfunc_copy_part00(int i, int j, void *arg);
 double Qfunc_copy_part01(int i, int j, void *arg);
 double Qfunc_copy_part11(int i, int j, void *arg);
+double Qfunc_dmatern(int i, int j, void *arg);
 double Qfunc_generic1(int i, int j, void *arg);
 double Qfunc_generic2(int i, int j, void *arg);
 double Qfunc_generic3(int i, int j, void *arg);
@@ -1407,13 +1423,14 @@ double extra(double *theta, int ntheta, void *argument);
 double iid_mfunc(int idx, void *arg);
 double inla_Phi(double x);
 double inla_Phi_fast(double x);
-double inla_sn_Phi(double x, double xi, double omega, double alpha);
 double inla_ar1_cyclic_logdet(int N_orig, double phi);
 double inla_compute_initial_value(int idx, GMRFLib_logl_tp * logl, double *x_vec, void *arg);
 double inla_compute_saturated_loglik(int idx, GMRFLib_logl_tp * loglfunc, double *x_vec, void *arg);
 double inla_compute_saturated_loglik_core(int idx, GMRFLib_logl_tp * loglfunc, double *x_vec, void *arg);
+double inla_dmatern_cf(double dist, double range, double nu);
 double inla_log_Phi(double x);
 double inla_log_Phi_fast(double x);
+double inla_sn_Phi(double x, double xi, double omega, double alpha);
 double inla_update_density(double *theta, inla_update_tp * arg);
 double link_cauchit(double x, map_arg_tp typ, void *param, double *cov);
 double link_cloglog(double x, map_arg_tp typ, void *param, double *cov);
@@ -1425,9 +1442,9 @@ double link_logitoffset(double x, map_arg_tp typ, void *param, double *cov);
 double link_loglog(double x, map_arg_tp typ, void *param, double *cov);
 double link_logoffset(double x, map_arg_tp typ, void *param, double *cov);
 double link_neglog(double x, map_arg_tp typ, void *param, double *cov);
+double link_pqbinomial(double x, map_arg_tp typ, void *param, double *cov);
 double link_probit(double x, map_arg_tp typ, void *param, double *cov);
 double link_qbinomial(double x, map_arg_tp typ, void *param, double *cov);
-double link_pqbinomial(double x, map_arg_tp typ, void *param, double *cov);
 double link_qpoisson(double x, map_arg_tp typ, void *param, double *cov);
 double link_qweibull(double x, map_arg_tp typ, void *param, double *cov);
 double link_special1(double x, map_arg_tp typ, void *param, double *cov);
@@ -1607,7 +1624,8 @@ int inla_print_sha1(FILE * fp, unsigned char *md);
 int inla_qinv(const char *filename, const char *outfile, const char *constrfile);
 int inla_qreordering(const char *filename);
 int inla_qsample(const char *filename, const char *outfile, const char *nsamples, const char *rngfile,
-		 const char *samplefile, const char *bfile, const char *mufile, const char *constr_file, const char *meanfile);
+		 const char *samplefile, const char *bfile, const char *mufile, const char *constr_file,
+		 const char *meanfile, const char *selectionfile, int verbose);
 int inla_qsolve(const char *Qfilename, const char *Afilename, const char *Bfilename, const char *method);
 int inla_read_data_all(double **x, int *n, const char *filename, int *ncol_data_all);
 int inla_read_data_general(double **xx, int **ix, int *nndata, const char *filename, int n, int column, int n_columns, int verbose,

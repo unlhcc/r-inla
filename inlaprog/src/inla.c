@@ -2338,6 +2338,59 @@ double Qfunc_rgeneric(int i, int j, void *arg)
 
 	return (a->Q[id]->Qfunc(i, j, a->Q[id]->Qfunc_arg));
 }
+
+double Qfunc_dmatern(int i, int j, void *arg)
+{
+	dmatern_arg_tp *a = (dmatern_arg_tp *) arg;
+	double prec = map_exp(a->log_prec[GMRFLib_thread_id][0], MAP_FORWARD, NULL);
+	int rebuild, debug = 0, id;
+
+	id = omp_get_thread_num() * GMRFLib_MAX_THREADS + GMRFLib_thread_id;
+	rebuild = (a->param[id] == NULL || a->Q[GMRFLib_thread_id] == NULL);
+	if (!rebuild) {
+		// yes, log_prec is ...[0], so we start at 1
+		rebuild = (a->param[id][1] != a->log_range[GMRFLib_thread_id][0]) || (a->param[id][2] != a->log_nu[GMRFLib_thread_id][0]);
+	}
+
+	if (rebuild) {
+#pragma omp critical
+		{
+			// yes, log_prec is ...[0], so we start at 1
+			double range, nu;
+			if (debug) {
+				printf("Rebuild Q-hash for id %d\n", id);
+			}
+
+			if (!(a->Q[id])) {
+				a->Q[id] = gsl_matrix_calloc(a->n, a->n);
+			}
+
+			a->param[id][1] = a->log_range[GMRFLib_thread_id][0];
+			a->param[id][2] = a->log_nu[GMRFLib_thread_id][0];
+			range = map_exp(a->param[id][1], MAP_FORWARD, NULL);
+			nu = map_exp(a->param[id][2], MAP_FORWARD, NULL);
+
+			if (debug) {
+				printf("\trange %.4f nu %.4f\n", range, nu);
+			}
+
+			for (int i = 0; i < a->n; i++) {
+				for (int j = i; j < a->n; j++) {
+					double dist, val;
+
+					dist = gsl_matrix_get(a->dist, i, j);
+					val = inla_dmatern_cf(dist, range, nu);
+					gsl_matrix_set(a->Q[id], i, j, val);
+					gsl_matrix_set(a->Q[id], j, i, val);
+				}
+			}
+			GMRFLib_gsl_spd_inverse(a->Q[id]);
+		}
+	}
+
+	return prec * gsl_matrix_get(a->Q[id], i, j);
+}
+
 double mfunc_ar1(int i, void *arg)
 {
 	inla_ar1_arg_tp *a = (inla_ar1_arg_tp *) arg;
@@ -10057,6 +10110,10 @@ int inla_parse_problem(inla_tp * mb, dictionary * ini, int sec, int make_dir)
 			GMRFLib_smtp = GMRFLib_SMTP_TAUCS;
 		} else if (!strcasecmp(smtp, "PARDISO")) {
 			GMRFLib_smtp = GMRFLib_SMTP_PARDISO;
+			// need to make sure this is correct
+			if (mb->strategy != GMRFLib_OPENMP_STRATEGY_PARDISO_SERIAL && mb->strategy != GMRFLib_OPENMP_STRATEGY_PARDISO_PARALLEL) {
+				mb->strategy = GMRFLib_OPENMP_STRATEGY_PARDISO_SERIAL;
+			}
 		} else if (!strcasecmp(smtp, "DEFAULT")) {
 			if (GMRFLib_pardiso_ok < 0) {
 				GMRFLib_pardiso_ok = (GMRFLib_pardiso_check_install(0, 1) == GMRFLib_SUCCESS ? 1 : 0);
@@ -15586,7 +15643,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 	    NULL, **rho_intern12 = NULL, **range_intern = NULL, tmp, **beta_intern = NULL, **beta = NULL, **h2_intern =
 	    NULL, **a_intern = NULL, ***theta_iidwishart = NULL, **log_diag, rd, **mean_x = NULL, **log_prec_x =
 	    NULL, ***pacf_intern = NULL, slm_rho_min = 0.0, slm_rho_max = 0.0, **log_halflife = NULL, **log_shape = NULL, **alpha =
-	    NULL, **gama = NULL, **alpha1 = NULL, **alpha2 = NULL, **H_intern = NULL;
+	    NULL, **gama = NULL, **alpha1 = NULL, **alpha2 = NULL, **H_intern = NULL, **nu_intern;
 
 	GMRFLib_crwdef_tp *crwdef = NULL;
 	inla_spde_tp *spde_model = NULL;
@@ -15742,6 +15799,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 	HYPER_NEW(alpha1, 0.0);
 	HYPER_NEW(alpha2, 0.0);
 	HYPER_NEW(gama, 0.0);
+	HYPER_NEW(nu_intern, 0.0);
 
 	/*
 	 * start parsing 
@@ -15879,6 +15937,10 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		mb->f_id[mb->nf] = F_MATERN2D;
 		mb->f_ntheta[mb->nf] = 2;
 		mb->f_modelname[mb->nf] = GMRFLib_strdup("Matern2D model");
+	} else if (_OneOf("DMATERN")) {
+		mb->f_id[mb->nf] = F_DMATERN;
+		mb->f_ntheta[mb->nf] = 3;
+		mb->f_modelname[mb->nf] = GMRFLib_strdup("DMatern model");
 	} else if (_OneOf("Z")) {
 		mb->f_id[mb->nf] = F_Z;
 		mb->f_ntheta[mb->nf] = 1;
@@ -16140,6 +16202,12 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 	case F_MATERN2D:
 		inla_read_prior0(mb, ini, sec, &(mb->f_prior[mb->nf][0]), "LOGGAMMA");	/* precision */
 		inla_read_prior1(mb, ini, sec, &(mb->f_prior[mb->nf][1]), "LOGGAMMA");	/* range */
+		break;
+
+	case F_DMATERN:
+		inla_read_prior0(mb, ini, sec, &(mb->f_prior[mb->nf][0]), "LOGGAMMA");	/* precision */
+		inla_read_prior1(mb, ini, sec, &(mb->f_prior[mb->nf][1]), "LOGGAMMA");	/* range */
+		inla_read_prior2(mb, ini, sec, &(mb->f_prior[mb->nf][2]), "LOGGAMMA");	/* nu */
 		break;
 
 	case F_MEC:
@@ -16898,6 +16966,8 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		case F_LOG1EXP:
 		case F_LOGDIST:
 		case F_R_GENERIC:
+		case F_DMATERN:
+		{
 			/*
 			 * RW-models and OU-model and ME: read LOCATIONS, set N from LOCATIONS, else read field N and use LOCATIONS=DEFAULT.
 			 */
@@ -16970,6 +17040,7 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 				}
 			}
 			break;
+		}
 
 		default:
 			/*
@@ -20341,6 +20412,138 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		break;
 	}
 
+
+	case F_DMATERN:
+	{
+		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL0"), G.log_prec_initial);
+		if (!mb->f_fixed[mb->nf][0] && mb->reuse_mode) {
+			tmp = mb->theta_file[mb->theta_counter_file++];
+		}
+		_SetInitial(0, tmp);
+		HYPER_INIT(log_prec, tmp);
+		if (mb->verbose) {
+			printf("\t\tinitialise log_precision[%g]\n", tmp);
+			printf("\t\tfixed=[%1d]\n", mb->f_fixed[mb->nf][0]);
+		}
+
+		mb->f_theta[mb->nf] = Calloc(3, double **);
+		mb->f_theta[mb->nf][0] = log_prec;
+		if (!mb->f_fixed[mb->nf][0]) {
+			/*
+			 * add this \theta 
+			 */
+			mb->theta = Realloc(mb->theta, mb->ntheta + 1, double **);
+			mb->theta_hyperid = Realloc(mb->theta_hyperid, mb->ntheta + 1, char *);
+			mb->theta_hyperid[mb->ntheta] = mb->f_prior[mb->nf][0].hyperid;
+			mb->theta_tag = Realloc(mb->theta_tag, mb->ntheta + 1, char *);
+			mb->theta_tag_userscale = Realloc(mb->theta_tag_userscale, mb->ntheta + 1, char *);
+			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
+			GMRFLib_sprintf(&msg, "Log precision for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "Precision for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag_userscale[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "%s-parameter0", mb->f_dir[mb->nf]);
+			mb->theta_dir[mb->ntheta] = msg;
+
+			mb->theta_from = Realloc(mb->theta_from, mb->ntheta + 1, char *);
+			mb->theta_to = Realloc(mb->theta_to, mb->ntheta + 1, char *);
+			mb->theta_from[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][0].from_theta);
+			mb->theta_to[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][0].to_theta);
+
+			mb->theta[mb->ntheta] = log_prec;
+			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
+			mb->theta_map[mb->ntheta] = map_precision;
+			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
+			mb->theta_map_arg[mb->ntheta] = NULL;
+			mb->ntheta++;
+		}
+
+		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL1"), 2.0);
+		if (!mb->f_fixed[mb->nf][1] && mb->reuse_mode) {
+			tmp = mb->theta_file[mb->theta_counter_file++];
+		}
+		_SetInitial(1, tmp);
+		HYPER_INIT(range_intern, tmp);
+		if (mb->verbose) {
+			printf("\t\tinitialise range_intern[%g]\n", tmp);
+			printf("\t\tfixed=[%1d]\n", mb->f_fixed[mb->nf][1]);
+		}
+
+		mb->f_theta[mb->nf][1] = range_intern;
+		if (!mb->f_fixed[mb->nf][1]) {
+			/*
+			 * add this \theta 
+			 */
+			mb->theta = Realloc(mb->theta, mb->ntheta + 1, double **);
+			mb->theta_hyperid = Realloc(mb->theta_hyperid, mb->ntheta + 1, char *);
+			mb->theta_hyperid[mb->ntheta] = mb->f_prior[mb->nf][1].hyperid;
+			mb->theta_tag = Realloc(mb->theta_tag, mb->ntheta + 1, char *);
+			mb->theta_tag_userscale = Realloc(mb->theta_tag_userscale, mb->ntheta + 1, char *);
+			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
+			GMRFLib_sprintf(&msg, "log range for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "Range for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag_userscale[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "%s-parameter1", mb->f_dir[mb->nf]);
+			mb->theta_dir[mb->ntheta] = msg;
+
+			mb->theta_from = Realloc(mb->theta_from, mb->ntheta + 1, char *);
+			mb->theta_to = Realloc(mb->theta_to, mb->ntheta + 1, char *);
+			mb->theta_from[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][1].from_theta);
+			mb->theta_to[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][1].to_theta);
+
+			mb->theta[mb->ntheta] = range_intern;
+			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
+			mb->theta_map[mb->ntheta] = map_range;
+			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
+			mb->theta_map_arg[mb->ntheta] = NULL;
+			mb->ntheta++;
+		}
+
+		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL2"), log(0.5));
+		if (!mb->f_fixed[mb->nf][1] && mb->reuse_mode) {
+			tmp = mb->theta_file[mb->theta_counter_file++];
+		}
+		_SetInitial(2, tmp);
+		HYPER_INIT(nu_intern, tmp);
+		if (mb->verbose) {
+			printf("\t\tinitialise nu_intern[%g]\n", tmp);
+			printf("\t\tfixed=[%1d]\n", mb->f_fixed[mb->nf][2]);
+		}
+
+		mb->f_theta[mb->nf][2] = nu_intern;
+		if (!mb->f_fixed[mb->nf][2]) {
+			/*
+			 * add this \theta 
+			 */
+			mb->theta = Realloc(mb->theta, mb->ntheta + 1, double **);
+			mb->theta_hyperid = Realloc(mb->theta_hyperid, mb->ntheta + 1, char *);
+			mb->theta_hyperid[mb->ntheta] = mb->f_prior[mb->nf][1].hyperid;
+			mb->theta_tag = Realloc(mb->theta_tag, mb->ntheta + 1, char *);
+			mb->theta_tag_userscale = Realloc(mb->theta_tag_userscale, mb->ntheta + 1, char *);
+			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
+			GMRFLib_sprintf(&msg, "log nu for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "Nu for %s", (secname ? secname : mb->f_tag[mb->nf]));
+			mb->theta_tag_userscale[mb->ntheta] = msg;
+			GMRFLib_sprintf(&msg, "%s-parameter1", mb->f_dir[mb->nf]);
+			mb->theta_dir[mb->ntheta] = msg;
+
+			mb->theta_from = Realloc(mb->theta_from, mb->ntheta + 1, char *);
+			mb->theta_to = Realloc(mb->theta_to, mb->ntheta + 1, char *);
+			mb->theta_from[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][1].from_theta);
+			mb->theta_to[mb->ntheta] = GMRFLib_strdup(mb->f_prior[mb->nf][1].to_theta);
+
+			mb->theta[mb->ntheta] = nu_intern;
+			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
+			mb->theta_map[mb->ntheta] = map_exp;
+			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
+			mb->theta_map_arg[mb->ntheta] = NULL;
+			mb->ntheta++;
+		}
+		break;
+	}
+
 	default:
 		abort();
 	}
@@ -21564,6 +21767,85 @@ int inla_parse_ffield(inla_tp * mb, dictionary * ini, int sec)
 		break;
 	}
 
+	case F_DMATERN:
+	{
+		dmatern_arg_tp *arg = Calloc(1, dmatern_arg_tp);
+		dmatern_arg_tp *arg_orig = Calloc(1, dmatern_arg_tp);
+
+		filename = GMRFLib_strdup(iniparser_getstring(ini, inla_string_join(secname, "dmatern.locations"), NULL));
+		arg->locations = GMRFLib_read_fmesher_file(filename, (long int) 0, -1);
+		Free(filename);
+
+		if (!strcasecmp(mb->f_prior[mb->nf][1].name, "PCRANGE")) {
+			// In this case, the parameters of the prior depends on the dimension. This is fixed here, where we
+			// compute lambda = -U^(dim/2)*log(alpha) and then the parametes are redefined to be (lambda, dim)
+			double U = mb->f_prior[mb->nf][1].parameters[0];
+			double alpha = mb->f_prior[mb->nf][1].parameters[1];
+			double dim = arg->locations->ncol;
+			mb->f_prior[mb->nf][1].parameters[0] = -pow(U, dim / 2.0) * log(alpha);
+			mb->f_prior[mb->nf][1].parameters[1] = dim;
+		}
+
+		arg->n = arg->locations->nrow;
+		arg->dim = arg->locations->ncol;
+		arg->log_range = range_intern;
+		arg->log_prec = log_prec;
+		arg->log_nu = nu_intern;
+		memcpy(arg_orig, arg, sizeof(dmatern_arg_tp));
+
+		mb->f_Qfunc[mb->nf] = Qfunc_dmatern;
+		mb->f_Qfunc_orig[mb->nf] = Qfunc_dmatern;
+		mb->f_Qfunc_arg[mb->nf] = (void *) arg;
+		mb->f_Qfunc_arg_orig[mb->nf] = (void *) arg_orig;
+		// dense graph
+		GMRFLib_make_linear_graph(&(mb->f_graph[mb->nf]), arg->n, arg->n, 0);
+		GMRFLib_make_linear_graph(&(mb->f_graph_orig[mb->nf]), arg->n, arg->n, 0);
+		mb->f_rankdef[mb->nf] = 0.0;
+		assert(mb->f_n[mb->nf] == arg->n);
+		mb->f_N[mb->nf] = mb->f_n[mb->nf];
+		mb->f_id[mb->nf] = F_DMATERN;
+
+		// setup cache and prefill parameters with random numbers
+		arg->param = Calloc(GMRFLib_MAX_THREADS, double *);
+		arg->Q = Calloc(GMRFLib_MAX_THREADS, gsl_matrix *);
+		arg_orig->param = Calloc(GMRFLib_MAX_THREADS, double *);
+		arg_orig->Q = Calloc(GMRFLib_MAX_THREADS, gsl_matrix *);
+
+		for (int i = 0; i < GMRFLib_MAX_THREADS; i++) {
+			int np = 3;
+			arg->param[i] = Calloc(np, double);
+			arg_orig->param[i] = Calloc(np, double);
+			for (int j = 0; j < np; j++) {
+				arg->param[i][j] = GMRFLib_uniform();
+				arg_orig->param[i][j] = GMRFLib_uniform();
+			}
+		}
+
+
+		// compute the distance between locations. 
+		arg->dist = gsl_matrix_alloc(arg->n, arg->n);
+		arg_orig->dist = arg->dist;		       /* read only */
+		for (int i = 0; i < arg->n; i++) {
+			for (int j = i; j < arg->n; j++) {
+				if (i == j) {
+					gsl_matrix_set(arg->dist, i, j, 0.0);
+				} else {
+					double dist = 0.0;
+
+					for (int k = 0; k < arg->dim; k++) {
+						dist += SQR(GMRFLib_matrix_get(i, k, arg->locations)
+							    - GMRFLib_matrix_get(j, k, arg->locations));
+					}
+					dist = sqrt(dist);
+					gsl_matrix_set(arg->dist, i, j, dist);
+					gsl_matrix_set(arg->dist, j, i, dist);
+				}
+			}
+		}
+
+		break;
+	}
+
 	default:
 	{
 		/*
@@ -22777,8 +23059,8 @@ int inla_parse_INLA(inla_tp * mb, dictionary * ini, int sec, int make_dir)
 	mb->ai_par->gsl_epsx = iniparser_getdouble(ini, inla_string_join(secname, "TOLERANCE.X"), mb->ai_par->gsl_epsx);
 	mb->ai_par->optpar_abserr_func = iniparser_getdouble(ini, inla_string_join(secname, "ABSERR.FUNC"), mb->ai_par->optpar_abserr_func);
 	mb->ai_par->optpar_abserr_func = iniparser_getdouble(ini, inla_string_join(secname, "OPTPAR.ABSERR.FUNC"), mb->ai_par->optpar_abserr_func);
+	mb->ai_par->optpar_abserr_step = iniparser_getdouble(ini, inla_string_join(secname, "TOLERANCE.STEP"), mb->ai_par->optpar_abserr_step);
 	mb->ai_par->optpar_abserr_step = iniparser_getdouble(ini, inla_string_join(secname, "ABSERR.STEP"), mb->ai_par->optpar_abserr_step);
-	mb->ai_par->optpar_abserr_step = iniparser_getdouble(ini, inla_string_join(secname, "OPTPAR.ABSERR.STEP"), mb->ai_par->optpar_abserr_step);
 	mb->ai_par->optpar_nr_step_factor =
 	    iniparser_getdouble(ini, inla_string_join(secname, "NR.STEP.FACTOR"), mb->ai_par->optpar_nr_step_factor);
 
@@ -26379,6 +26661,67 @@ double extra(double *theta, int ntheta, void *argument)
 			break;
 		}
 
+		case F_DMATERN:
+		{
+			double log_range, log_nu, range, var, nu, prec, logdet;
+
+			if (_NOT_FIXED(f_fixed[i][0])) {
+				log_precision = theta[count];
+				count++;
+			} else {
+				log_precision = mb->f_theta[i][0][GMRFLib_thread_id][0];
+			}
+			if (_NOT_FIXED(f_fixed[i][1])) {
+				log_range = theta[count];
+				count++;
+			} else {
+				log_range = mb->f_theta[i][1][GMRFLib_thread_id][0];
+			}
+			if (_NOT_FIXED(f_fixed[i][2])) {
+				log_nu = theta[count];
+				count++;
+			} else {
+				log_nu = mb->f_theta[i][2][GMRFLib_thread_id][0];
+			}
+
+
+			dmatern_arg_tp *a = (dmatern_arg_tp *) (mb->f_Qfunc_arg_orig[i]);
+			gsl_matrix *S = gsl_matrix_calloc(a->n, a->n);
+			prec = map_exp(log_precision, MAP_FORWARD, NULL);
+			range = map_range(log_range, MAP_FORWARD, NULL);
+			nu = map_exp(log_nu, MAP_FORWARD, NULL);
+			var = 1.0 / prec;
+
+			for (int ii = 0; ii < a->n; ii++) {
+				for (int jj = ii; jj < a->n; jj++) {
+					double dist, val;
+					dist = gsl_matrix_get(a->dist, ii, jj);
+					val = var * inla_dmatern_cf(dist, range, nu);
+					gsl_matrix_set(S, ii, jj, val);
+					gsl_matrix_set(S, jj, ii, val);
+				}
+			}
+			// need a '-' as we're computing the |S| instead of |Q|.
+			logdet = -GMRFLib_gsl_spd_logdet(S) / a->n;	/* logdet(Q), as if a->n=1. makes its easier below */
+			gsl_matrix_free(S);
+
+			_SET_GROUP_RHO(3);
+			val += mb->f_nrep[i] * (normc_g + gcorr * (LOG_NORMC_GAUSSIAN * (mb->f_N[i] - mb->f_rankdef[i]) +
+								   (mb->f_N[i] - mb->f_rankdef[i]) / 2.0 * logdet));
+
+			if (_NOT_FIXED(f_fixed[i][0])) {
+				val += PRIOR_EVAL(mb->f_prior[i][0], &log_precision);
+			}
+			if (_NOT_FIXED(f_fixed[i][1])) {
+				val += PRIOR_EVAL(mb->f_prior[i][1], &log_range);
+			}
+			if (_NOT_FIXED(f_fixed[i][2])) {
+				val += PRIOR_EVAL(mb->f_prior[i][2], &log_nu);
+			}
+
+			break;
+		}
+
 		case F_BESAGPROPER:
 		{
 			typedef struct {
@@ -27016,7 +27359,6 @@ int inla_INLA(inla_tp * mb)
 
 	// define the adaptive strategy
 	GMRFLib_ai_strategy_tp *adapt = NULL;
-	local_count = 0;
 	if (mb->ai_par->strategy == GMRFLib_AI_STRATEGY_ADAPTIVE) {
 		adapt = Calloc(N, GMRFLib_ai_strategy_tp);
 		for (i = 0; i < N; i++) {
@@ -27030,22 +27372,16 @@ int inla_INLA(inla_tp * mb)
 				 */
 				for (j = 0; j < mb->f_Ntotal[i]; j++) {
 					adapt[count + j] = GMRFLib_AI_STRATEGY_MEANSKEWCORRECTED_GAUSSIAN;
-					local_count++;
 				}
 			}
 			count += mb->f_Ntotal[i];
 		}
 		for (i = 0; i < mb->nlinear; i++) {
 			adapt[count++] = GMRFLib_AI_STRATEGY_MEANSKEWCORRECTED_GAUSSIAN;
-			local_count++;
-		}
-		if (local_count == 0) {			       /* then there is nothting to correct for */
-			Free(adapt);
-			adapt = NULL;
 		}
 	}
 	mb->ai_par->adapt_strategy = adapt;
-	mb->ai_par->adapt_len = local_count;
+	mb->ai_par->adapt_len = (adapt ? N : 0);
 
 	if (G.reorder < 0) {
 		GMRFLib_sizeof_tp nnz = 0;
@@ -30637,7 +30973,9 @@ int inla_qinv(const char *filename, const char *constrfile, const char *outfile)
 	}
 
 	if (GMRFLib_smtp == GMRFLib_SMTP_PARDISO) {
-		GMRFLib_reorder = G.reorder = GMRFLib_REORDER_PARDISO;
+		GMRFLib_reorder = G.reorder = GMRFLib_REORDER_DEFAULT;
+		GMRFLib_openmp->strategy == GMRFLib_OPENMP_STRATEGY_PARDISO_PARALLEL;
+		GMRFLib_openmp_implement_strategy(GMRFLib_OPENMP_PLACES_DEFAULT, NULL, NULL);
 	} else if (GMRFLib_smtp == GMRFLib_SMTP_BAND) {
 		GMRFLib_reorder = G.reorder = GMRFLib_REORDER_BAND;
 	} else {
@@ -30727,12 +31065,18 @@ int inla_qsolve(const char *Qfilename, const char *Afilename, const char *Bfilen
 }
 
 int inla_qsample(const char *filename, const char *outfile, const char *nsamples, const char *rngfile,
-		 const char *samplefile, const char *bfile, const char *mufile, const char *constrfile, const char *meanfile)
+		 const char *samplefile, const char *bfile, const char *mufile, const char *constrfile,
+		 const char *meanfile, const char *selectionfile, int verbose)
 {
+	int output_every = 100;
+	double t_ref = GMRFLib_cpu(), t_reff = GMRFLib_cpu();
 	size_t siz, ret;
 	char *state;
 	FILE *fp;
 
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: start pre...\n");
+	}
 	fp = fopen(rngfile, "rb");
 	if (fp) {
 		fseek(fp, 0L, SEEK_END);
@@ -30752,7 +31096,7 @@ int inla_qsample(const char *filename, const char *outfile, const char *nsamples
 	GMRFLib_graph_tp *graph;
 	GMRFLib_problem_tp *problem = NULL;
 
-	GMRFLib_matrix_tp *M = Calloc(1, GMRFLib_matrix_tp), *S = NULL, *b = NULL, *mu = NULL, *constr_x = NULL;
+	GMRFLib_matrix_tp *M = Calloc(1, GMRFLib_matrix_tp), *S = NULL, *b = NULL, *mu = NULL, *constr_x = NULL, *selection = NULL;
 	GMRFLib_constr_tp *constr = NULL;
 
 	inla_sread_ints(&ns, 1, nsamples);
@@ -30776,6 +31120,12 @@ int inla_qsample(const char *filename, const char *outfile, const char *nsamples
 		mu = GMRFLib_read_fmesher_file(mufile, 0L, SEEK_CUR);
 	}
 
+	fp = fopen(selectionfile, "r");
+	if (fp) {
+		fclose(fp);				       /* file exists */
+		selection = GMRFLib_read_fmesher_file(selectionfile, 0L, SEEK_CUR);
+	}
+
 	fp = fopen(constrfile, "r");
 	if (fp) {
 		fclose(fp);
@@ -30791,18 +31141,42 @@ int inla_qsample(const char *filename, const char *outfile, const char *nsamples
 
 	if (GMRFLib_smtp == GMRFLib_SMTP_PARDISO) {
 		GMRFLib_reorder = G.reorder = GMRFLib_REORDER_DEFAULT;
+		GMRFLib_openmp->strategy == GMRFLib_OPENMP_STRATEGY_PARDISO_PARALLEL;
+		GMRFLib_openmp_implement_strategy(GMRFLib_OPENMP_PLACES_DEFAULT, NULL, NULL);
 	} else if (GMRFLib_smtp == GMRFLib_SMTP_BAND) {
 		GMRFLib_reorder = G.reorder = GMRFLib_REORDER_BAND;
 	} else {
 		GMRFLib_optimize_reorder(graph, NULL, NULL, NULL);
 	}
+
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: end pre %.2fs\n", GMRFLib_cpu() - t_ref);
+	}
+	t_ref = GMRFLib_cpu();
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: start prepare the model...\n");
+	}
+
 	GMRFLib_init_problem(&problem, NULL, (b ? b->A : NULL), NULL, (mu ? mu->A : NULL), graph, tab->Qfunc, tab->Qfunc_arg, NULL,
 			     constr, GMRFLib_NEW_PROBLEM);
 
-	M->nrow = graph->n + 1;
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: end prepare the model %.2fs\n", GMRFLib_cpu() - t_ref);
+	}
+	t_ref = GMRFLib_cpu();
+
+	if (selection) {
+		M->nrow = selection->nrow + 1;
+	} else {
+		M->nrow = graph->n + 1;
+	}
 	M->ncol = ns;
 	M->elems = M->ncol * M->nrow;
 	M->A = Calloc(M->nrow * M->ncol, double);
+
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: start to sample %1d samples...\n", ns);
+	}
 
 	if (GMRFLib_smtp == GMRFLib_SMTP_PARDISO) {
 		// as we do not want to factorize it again...
@@ -30813,8 +31187,20 @@ int inla_qsample(const char *filename, const char *outfile, const char *nsamples
 				memcpy(problem->sample, &(S->A[i * S->nrow]), S->nrow * sizeof(double));
 			}
 			GMRFLib_evaluate(problem);
-			memcpy(&(M->A[i * M->nrow]), problem->sample, graph->n * sizeof(double));
+
+			if (!selection) {
+				memcpy(&(M->A[i * M->nrow]), problem->sample, graph->n * sizeof(double));
+			} else {
+				for (int ii = 0; ii < selection->nrow; ii++) {
+					M->A[i * M->nrow + ii] = problem->sample[(int) selection->A[ii]];
+				}
+			}
 			M->A[(i + 1) * M->nrow - 1] = problem->sub_logdens;
+
+			if (verbose && (!((i + 1) % output_every) || i == (ns - 1))) {
+				fprintf(stderr, "inla_qsample: done with %1d samples, with %.2f samples/s and %.2fs in total\n",
+					i + 1, (i + 1.0) / (GMRFLib_cpu() - t_ref), (GMRFLib_cpu() - t_ref));
+			}
 		}
 	} else {
 		GMRFLib_problem_tp **problems = Calloc(GMRFLib_openmp->max_threads_outer, GMRFLib_problem_tp *);
@@ -30830,25 +31216,51 @@ int inla_qsample(const char *filename, const char *outfile, const char *nsamples
 				memcpy(problems[thread]->sample, &(S->A[i * S->nrow]), S->nrow * sizeof(double));
 			}
 			GMRFLib_evaluate(problems[thread]);
-			memcpy(&(M->A[i * M->nrow]), problems[thread]->sample, M->nrow * sizeof(double));
+
+			if (!selection) {
+				memcpy(&(M->A[i * M->nrow]), problems[thread]->sample, graph->n * sizeof(double));
+			} else {
+				for (int ii = 0; ii < selection->nrow; ii++) {
+					M->A[i * M->nrow + ii] = problems[thread]->sample[(int) selection->A[ii]];
+				}
+			}
 			M->A[(i + 1) * M->nrow - 1] = problems[thread]->sub_logdens;
 		}
+	}
+
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: end in %.2fs with %.2f samples/s\n", GMRFLib_cpu() - t_ref, (double) ns / (GMRFLib_cpu() - t_ref));
+	}
+	t_ref = GMRFLib_cpu();
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: start post...\n");
 	}
 
 	GMRFLib_write_fmesher_file(M, outfile, (long int) 0, -1);
 
 	GMRFLib_matrix_tp *CM = Calloc(1, GMRFLib_matrix_tp);
-	CM->nrow = graph->n;
+	CM->nrow = M->nrow - 1;
 	CM->ncol = 1;
 	CM->elems = CM->ncol * CM->nrow;
 	CM->A = Calloc(CM->nrow * CM->ncol, double);
-	memcpy(CM->A, problem->mean_constr, graph->n * sizeof(double));
+	if (!selection) {
+		memcpy(CM->A, problem->mean_constr, graph->n * sizeof(double));
+	} else {
+		for (int ii = 0; ii < selection->nrow; ii++) {
+			CM->A[ii] = problem->mean_constr[(int) selection->A[ii]];
+		}
+	}
 	GMRFLib_write_fmesher_file(CM, meanfile, (long int) 0, -1);
 
 	state = GMRFLib_rng_getstate(&siz);
 	fp = fopen(rngfile, "wb");
 	fwrite((void *) state, (size_t) 1, siz, fp);
 	fclose(fp);
+
+	if (verbose) {
+		fprintf(stderr, "inla_qsample: end post %.2fs\n", GMRFLib_cpu() - t_ref);
+		fprintf(stderr, "inla_qsample: total time %.2fs\n", GMRFLib_cpu() - t_reff);
+	}
 
 	return 0;
 }
@@ -31180,6 +31592,18 @@ double inla_update_density(double *theta, inla_update_tp * arg)
 	Free(z);
 	return update_dens;
 }
+
+double inla_dmatern_cf(double dist, double range, double nu)
+{
+	double kappa = sqrt(8.0 * nu) / range;
+	double dd = kappa * dist;
+	double cf;
+
+	cf = (dist <= 1e-12 ? 1.0 : 1.0 / pow(2.0, nu - 1.0) / MATHLIB_FUN(gammafn) (nu) * pow(dd, nu) * MATHLIB_FUN(bessel_k) (dd, nu, 1.0));
+
+	return (cf);
+}
+
 int inla_R(char **argv)
 {
 	while (*argv) {
@@ -31786,6 +32210,24 @@ int testit(int argc, char **argv)
 		my_pardiso_test4();
 		break;
 
+	case 28:
+	{
+		double range = 1.9;
+		double nu = 0.94;
+		double kappa = sqrt(8.0 * nu) / range;
+		double d, dd;
+		double corf;
+
+		for (d = 0.0; d < 3.0 * range; d += range / 10.0) {
+			dd = kappa * d;
+			corf = (dd <= 0.0 ? 1.0 : 1.0 / pow(2.0, nu - 1.0) / MATHLIB_FUN(gammafn) (nu) *
+				pow(dd, nu) * MATHLIB_FUN(bessel_k) (dd, nu, 1.0));
+			printf("dmatern nu %.3f range %.3f dist %.3f dd %.5f corf %.5f\n", nu, range, d, dd, corf);
+		}
+
+		break;
+	}
+
 	default:
 		exit(0);
 	}
@@ -31920,7 +32362,7 @@ int main(int argc, char **argv)
 			break;
 
 		case 'S':
-			// this option is only used for other MODES than INLA
+			// this option is only used for other MODES than INLA, like qsample
 			inla_tolower(optarg);
 			if (!strcasecmp(optarg, "taucs") || !strcasecmp(optarg, "default")) {
 				GMRFLib_smtp = GMRFLib_SMTP_TAUCS;
@@ -31928,6 +32370,7 @@ int main(int argc, char **argv)
 				GMRFLib_smtp = GMRFLib_SMTP_BAND;
 			} else if (!strcasecmp(optarg, "pardiso")) {
 				GMRFLib_smtp = GMRFLib_SMTP_PARDISO;
+				// yes, this is what we want
 				GMRFLib_openmp->strategy = GMRFLib_OPENMP_STRATEGY_PARDISO_PARALLEL;
 			}
 			GMRFLib_openmp_implement_strategy(GMRFLib_OPENMP_PLACES_EXTERNAL, NULL, &GMRFLib_smtp);
@@ -32081,7 +32524,7 @@ int main(int argc, char **argv)
 
 	case INLA_MODE_QSAMPLE:
 		inla_qsample(argv[optind], argv[optind + 1], argv[optind + 2], argv[optind + 3], argv[optind + 4], argv[optind + 5],
-			     argv[optind + 6], argv[optind + 7], argv[optind + 8]);
+			     argv[optind + 6], argv[optind + 7], argv[optind + 8], argv[optind + 9], verbose);
 		if (report)
 			GMRFLib_timer_full_report(NULL);
 		exit(EXIT_SUCCESS);
