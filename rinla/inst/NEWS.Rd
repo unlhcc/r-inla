@@ -29,6 +29,22 @@
   }
 }
 
+\section{CHANGES IN VERSION 18.10.28}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New function \code{inla.priors.used}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.10.17}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item Export class \code{inla}
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 18.10.16}{
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
