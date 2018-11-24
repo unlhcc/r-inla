@@ -29,6 +29,30 @@
   }
 }
 
+\section{CHANGES IN VERSION 18.11.22}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Improved \code{control.mix} interface and code
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.10.29}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Likelihood model \code{nbinomial2}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.10.28}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New function \code{inla.priors.used}
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 18.10.17}{
   \subsection{NEW FEATURES}{
     \itemize{

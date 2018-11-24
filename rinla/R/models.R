@@ -5576,8 +5576,7 @@
 
                  cbinomial = list(
                      doc = "The clustered Binomial likelihood", 
-                     hyper = list(
-                         ),
+                     hyper = list(),
                      survival = FALSE,
                      discrete = TRUE,
                      link = c("default", "logit", "cauchit", "probit", "cloglog", "loglog"),
@@ -5603,6 +5602,15 @@
                      survival = FALSE,
                      discrete = TRUE,
                      link = c("default", "log", "logoffset", "quantile"),
+                     pdf = "nbinomial"
+                     ),
+
+                 nbinomial2 = list(
+                     doc = "The negBinomial2 likelihood", 
+                     hyper = list(), 
+                     survival = FALSE,
+                     discrete = TRUE,
+                     link = c("default", "logit", "cauchit", "probit", "cloglog", "loglog"), 
                      pdf = "nbinomial"
                      ),
 
