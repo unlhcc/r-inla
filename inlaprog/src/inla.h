@@ -530,6 +530,7 @@ typedef enum {
 	F_FGN2,
 	F_AR1C,
 	F_DMATERN,
+	F_INTSLOPE, 
 	P_LOGGAMMA = 2000,				       /* priors */
 	P_GAUSSIAN,
 	P_MVGAUSSIAN,
@@ -667,6 +668,13 @@ typedef struct {
 
 typedef struct inla_tp_struct inla_tp;			       /* need it like this as they point to each other */
 
+typedef enum {
+	MIX_INT_DEFAULT = 0,
+	MIX_INT_QUADRATURE = 1,
+	MIX_INT_SIMPSON = 2
+} inla_mix_integrator_tp;
+
+
 typedef struct {
 	char *data_likelihood;
 	int variant;
@@ -710,8 +718,9 @@ typedef struct {
 	 * the re-extention
 	 */
 	int mix_use;
-	int mix_nq;
+	int mix_npoints;
 	inla_component_tp mix_id;
+	inla_mix_integrator_tp mix_integrator;
 	GMRFLib_logl_tp *mix_loglikelihood;
 	Prior_tp mix_prior;
 	int mix_fixed;
@@ -1318,6 +1327,28 @@ typedef struct {
 	inla_besag_Qfunc_arg_tp *besagdef;
 } inla_group_def_tp;
 
+typedef struct
+{
+	int n;				       // length of covariates/subject/strata 
+	int N;				       // size of matrix = n + warg->dim*m, m=#subjects, dim=2 
+	int nsubject;
+	int nstrata;
+	double precision;		       // fixed high precision 
+	double ***theta_gamma;
+	GMRFLib_matrix_tp *def;
+	GMRFLib_idx_tp **subject_idx;
+	inla_iid_wishart_arg_tp *warg;
+} inla_intslope_arg_tp;
+
+typedef enum {
+	INTSLOPE_SUBJECT = 0,
+	INTSLOPE_STRATA = 1,
+	INTSLOPE_Z = 2
+}
+	inla_intslope_column_tp;
+	
+
+
 #define R_GENERIC_Q "Q"
 #define R_GENERIC_GRAPH "graph"
 #define R_GENERIC_MU "mu"
@@ -1726,10 +1757,16 @@ int my_file_exists(const char *filename);
 int my_dir_exists(const char *dirname);
 int my_setenv(char *str, int prefix);
 int testit(int argc, char **argv);
+int inla_mix_int_simpson_gaussian(double **x, double **w, int n, void *arg);
+int inla_mix_int_quadrature_gaussian(double **x, double **w, int n, void *arg);
 map_table_tp *mapfunc_find(const char *name);
 unsigned char *inla_fp_sha1(FILE * fp);
 unsigned char *inla_inifile_sha1(const char *filename);
 void inla_signal(int sig);
+int inla_make_intslope_graph(GMRFLib_graph_tp **graph, inla_intslope_arg_tp *arg);
+
+int loglikelihood_mix_core(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg,
+			   int (*quadrature) (double **, double **, int, void *), int (*simpson) (double **, double **, int, void *));
 
 /* 
 ***

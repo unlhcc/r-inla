@@ -29,6 +29,22 @@
   }
 }
 
+\section{CHANGES IN VERSION 18.11.28}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New latent model \code{intslope}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 18.11.22}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Improved \code{control.mix} interface and code
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 18.10.29}{
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
