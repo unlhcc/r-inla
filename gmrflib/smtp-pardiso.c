@@ -653,7 +653,7 @@ int GMRFLib_pardiso_solve_core(GMRFLib_pardiso_store_tp * store, GMRFLib_pardiso
 	assert(store->pstore->done_with_chol == GMRFLib_TRUE);
 
 	// this is so that the RHS can be overwritten
-	int n = store->graph->n, mnum1 = 1, i, j, k, offset, quot, rem, nblock;
+	int n = store->graph->n, mnum1 = 1, i, offset, nblock;
 	div_t d;
 	double *xx = NULL, *bb = NULL;
 
@@ -857,7 +857,7 @@ int GMRFLib_pardiso_free(GMRFLib_pardiso_store_tp ** store)
 			if (S.s_verbose) {
 				for (i = 0; i < PSTORES_NUM(); i++) {
 					if (S.busy[i]) {
-						printf("in store: i=%1d s=%lx\n", i, (unsigned long int) ((void *) S.static_pstores[i]));
+						printf("in store: i=%1d s=%p\n", i, (void *) S.static_pstores[i]);
 					}
 				}
 			}
@@ -1035,7 +1035,7 @@ int GMRFLib_duplicate_pardiso_store(GMRFLib_pardiso_store_tp ** new, GMRFLib_par
 	}
 	assert(found == 1);
 	if (S.s_verbose) {
-		printf("duplicate: new=%x old=%x i=%1d\n", *((void **) new), ((void *) old), i);
+		printf("duplicate: new=%p old=%p i=%1d\n", *((void **) new), ((void *) old), i);
 	}
 
 	GMRFLib_LEAVE_ROUTINE;
@@ -1126,7 +1126,7 @@ int my_pardiso_test1(void)
 			GMRFLib_pardiso_build(store2, g, Qtab->Qfunc, Qtab->Qfunc_arg);
 			GMRFLib_pardiso_chol(store2);
 		} else {
-			GMRFLib_duplicate_pardiso_store(&store2, store, NAN, 1);
+			GMRFLib_duplicate_pardiso_store(&store2, store, -1, 1);
 		}
 
 		int view = 1;
@@ -1292,7 +1292,7 @@ int my_pardiso_test3(void)
 		GMRFLib_pardiso_store_tp *local_store = NULL;
 
 		printf("this is k= %d from thread %d\n", k, omp_get_thread_num());
-		GMRFLib_duplicate_pardiso_store(&local_store, store, 1, 1);
+		GMRFLib_duplicate_pardiso_store(&local_store, store, -1, 1);
 
 		int view = 1;
 		double *x = Calloc(g->n * nrhs, double);
@@ -1372,7 +1372,7 @@ int my_pardiso_test3(void)
 
 int my_pardiso_test4(void)
 {
-	int err = 0, k;
+	int k;
 	GMRFLib_tabulate_Qfunc_tp *Qtab;
 	GMRFLib_graph_tp *g;
 	GMRFLib_csr_tp *csr;
