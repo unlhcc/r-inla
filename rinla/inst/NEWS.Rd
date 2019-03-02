@@ -29,6 +29,24 @@
   }
 }
 
+\section{CHANGES IN VERSION 19.03.02}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Changed from PARDISO.PARALLEL to PARDISO.SERIAL in \code{inla.qsample}
+      \item Optimize the \code{nhrs} for \code{inla.qsolve} for PARDISO
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.02.28}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Several fgn-models are now fine
+      \item Fixed CPU timing with the PARDISO library
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 19.02.26}{
   \subsection{BUG FIXES}{
     \itemize{
