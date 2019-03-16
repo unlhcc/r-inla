@@ -116,10 +116,19 @@
 
 `inla.call.builtin` = function()
 {
+    ## cannot call inla.getOption() here as it leads to an infinite recursive call. do this
+    ## manually instead.
+    if (exists("inla.options", env = inla.get.inlaEnv())) {
+        opt = get("inla.options", env = inla.get.inlaEnv())
+        mkl = if (!is.null(opt$mkl) && opt$mkl) "mkl." else ""
+    } else {
+        mkl = ""
+    }
+
     if (inla.os("mac")) {
-        fnm = system.file(paste("bin/mac/", inla.os.32or64bit(), "bit/inla.run", sep=""), package="INLA")
+        fnm = system.file(paste("bin/mac/", inla.os.32or64bit(), "bit/inla.", mkl, "run", sep=""), package="INLA")
     } else if (inla.os("linux")) {
-        fnm = system.file(paste("bin/linux/", inla.os.32or64bit(), "bit/inla.run", sep=""), package="INLA")
+        fnm = system.file(paste("bin/linux/", inla.os.32or64bit(), "bit/inla.", mkl, "run", sep=""), package="INLA")
     } else if (inla.os("windows")) {
         fnm = system.file(paste("bin/windows/", inla.os.32or64bit(), "bit/inla.exe", sep=""), package="INLA")
     } else {
@@ -215,7 +224,9 @@
     tmp.env = new.env()
     for (ff in files) {
         fff = paste(dir, "/", ff, sep="")
-        local({source(fff, local=TRUE)}, envir = tmp.env)
+        res = try(local({source(fff, local=TRUE)}, envir = tmp.env))
+        if (class(res) %in% "try-error")
+            warning(paste0("Got an error while sourcing file ",  fff))
     }
 
     ## replace the ones in the INLA-namespace
@@ -491,8 +502,9 @@
 `inla.tempdir` = function()
 {
     ## just replace \ in Windows with /
-
-    return (gsub("\\\\", "/", tempdir()))
+    t.dir = tempfile()
+    inla.dir.create(t.dir)
+    return (gsub("\\\\", "/", t.dir))
 }
 
 
@@ -1048,8 +1060,10 @@
 {
     if (inla.os("linux")) {
         ## setup the static builds instead
+        mkl = inla.getOption("mkl")
+        if (is.null(mkl)) mkl = FALSE
         d = dirname(inla.call.builtin())
-        inla.setOption(inla.call = paste(d,"/inla.static", sep=""))
+        inla.setOption(inla.call = paste(d, "/inla.", if (mkl) "mkl." else "", "static", sep=""))
         inla.setOption(fmesher.call = paste(d,"/fmesher.static", sep=""))
     }
     return (invisible())
