@@ -6264,48 +6264,6 @@ inla.models()
 				 }
 				\item{Model `binomial'.}{Number of hyperparmeters are 0.
 				 }
-				\item{Model `testbinomial1'.}{Number of hyperparmeters are 2.
-					 \describe{
-						\item{Hyperparameter `theta1'}{
-							 \describe{
-							\item{hyperid = }{`57001'}
-							\item{name = }{`sensitivity'}
-							\item{short.name = }{`s'}
-							\item{initial = }{`3'}
-							\item{fixed = }{`FALSE'}
-							\item{prior = }{`logitbeta'}
-							\item{param = }{`2 1'}
-							\item{to.theta = }{`\code{function(x) log(x/(1-x))}'}
-							\item{from.theta = }{`\code{function(x) exp(x)/(1+exp(x))}'}
-							}
-						}
-						\item{Hyperparameter `theta2'}{
-							 \describe{
-							\item{hyperid = }{`57002'}
-							\item{name = }{`specificity'}
-							\item{short.name = }{`e'}
-							\item{initial = }{`3'}
-							\item{fixed = }{`FALSE'}
-							\item{prior = }{`logitbeta'}
-							\item{param = }{`2 1'}
-							\item{to.theta = }{`\code{function(x) log(x/(1-x))}'}
-							\item{from.theta = }{`\code{function(x) exp(x)/(1+exp(x))}'}
-							}
-						}
-					 }
-					 \describe{
-						\item{Properties:}{
-							\describe{
-								\item{doc = }{`(experimental)'}
-								\item{status = }{`experimental'}
-								\item{survival = }{`FALSE'}
-								\item{discrete = }{`TRUE'}
-								\item{link = }{`default logit cauchit probit cloglog loglog log'}
-								\item{pdf = }{`testbinomial1'}
-							 }
-						 }
-					 }
-				 }
 				\item{Model `pom'.}{Number of hyperparmeters are 10.
 					 \describe{
 						\item{Hyperparameter `theta1'}{
@@ -6476,6 +6434,35 @@ inla.models()
 								\item{discrete = }{`FALSE'}
 								\item{link = }{`default log quantile'}
 								\item{pdf = }{`gamma'}
+							 }
+						 }
+					 }
+				 }
+				\item{Model `gammasurv'.}{Number of hyperparmeters are 1.
+					 \describe{
+						\item{Hyperparameter `theta'}{
+							 \describe{
+							\item{hyperid = }{`58101'}
+							\item{name = }{`precision parameter'}
+							\item{short.name = }{`prec'}
+							\item{initial = }{`0'}
+							\item{fixed = }{`FALSE'}
+							\item{prior = }{`loggamma'}
+							\item{param = }{`1 0.01'}
+							\item{to.theta = }{`\code{function(x) log(x)}'}
+							\item{from.theta = }{`\code{function(x) exp(x)}'}
+							}
+						}
+					 }
+					 \describe{
+						\item{Properties:}{
+							\describe{
+								\item{doc = }{`The Gamma likelihood (survival)'}
+								\item{survival = }{`TRUE'}
+								\item{discrete = }{`FALSE'}
+								\item{status = }{`experimental'}
+								\item{link = }{`default log quantile'}
+								\item{pdf = }{`gammasurv'}
 							 }
 						 }
 					 }
@@ -6711,9 +6698,9 @@ inla.models()
 						 }
 					 }
 				 }
-				\item{Model `gaussian'.}{Number of hyperparmeters are 1.
+				\item{Model `gaussian'.}{Number of hyperparmeters are 2.
 					 \describe{
-						\item{Hyperparameter `theta'}{
+						\item{Hyperparameter `theta1'}{
 							 \describe{
 							\item{hyperid = }{`65001'}
 							\item{name = }{`log precision'}
@@ -6726,30 +6713,15 @@ inla.models()
 							\item{from.theta = }{`\code{function(x) exp(x)}'}
 							}
 						}
-					 }
-					 \describe{
-						\item{Properties:}{
-							\describe{
-								\item{doc = }{`The Gaussian likelihoood'}
-								\item{survival = }{`FALSE'}
-								\item{discrete = }{`FALSE'}
-								\item{link = }{`default identity logit cauchit log logoffset'}
-								\item{pdf = }{`gaussian'}
-							 }
-						 }
-					 }
-				 }
-				\item{Model `normal'.}{Number of hyperparmeters are 1.
-					 \describe{
-						\item{Hyperparameter `theta'}{
+						\item{Hyperparameter `theta2'}{
 							 \describe{
-							\item{hyperid = }{`66001'}
-							\item{name = }{`log precision'}
-							\item{short.name = }{`prec'}
-							\item{initial = }{`4'}
-							\item{fixed = }{`FALSE'}
-							\item{prior = }{`loggamma'}
-							\item{param = }{`1 5e-05'}
+							\item{hyperid = }{`65002'}
+							\item{name = }{`log precision offset'}
+							\item{short.name = }{`precoffset'}
+							\item{initial = }{`72.0873067782343'}
+							\item{fixed = }{`TRUE'}
+							\item{prior = }{`none'}
+							\item{param = }{`'}
 							\item{to.theta = }{`\code{function(x) log(x)}'}
 							\item{from.theta = }{`\code{function(x) exp(x)}'}
 							}
@@ -6761,7 +6733,7 @@ inla.models()
 								\item{doc = }{`The Gaussian likelihoood'}
 								\item{survival = }{`FALSE'}
 								\item{discrete = }{`FALSE'}
-								\item{link = }{`default identity'}
+								\item{link = }{`default identity logit cauchit log logoffset'}
 								\item{pdf = }{`gaussian'}
 							 }
 						 }

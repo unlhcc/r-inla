@@ -184,6 +184,7 @@ typedef struct {
 	 * y ~ Normal(x, 1/(weight*prec)), also used for the log-normal
 	 */
 	double **log_prec_gaussian;
+	double **log_prec_gaussian_offset;
 	double *weight_gaussian;			       /* weights for the gaussian: Variance = 1/(weight*prec) */
 
 	/*
@@ -484,6 +485,7 @@ typedef enum {
 	L_QLOGLOGISTICSURV,
 	L_POM,
 	L_NBINOMIAL2,
+	L_GAMMASURV,
 	F_RW2D = 1000,					       /* f-models */
 	F_BESAG,
 	F_BESAG2,					       /* the [a*x, x/a] model */
@@ -1298,6 +1300,7 @@ typedef struct {
 	char *model;					       /* the variable name that contains the model definition */
 	int ntheta;
 	int n;
+	int mu_zero;					       /*  often mu is zero, allow for fast return */
 	double ***theta;
 	double **param;
 	GMRFLib_tabulate_Qfunc_tp **Q;
@@ -1704,6 +1707,8 @@ int loglikelihood_circular_normal(double *logll, double *x, int m, int idx, doub
 int loglikelihood_contpoisson(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_exp(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_expsurv(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
+int loglikelihood_gamma(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
+int loglikelihood_gammasurv(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_gammacount(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_gaussian(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_generic_surv(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg, GMRFLib_logl_tp * loglfun);
@@ -1785,9 +1790,9 @@ typedef struct {
 	double log_prec_initial;			       /* inititial value for log-precisions */
 	double mcmc_scale;				       /* scaling */
 	int mcmc_thinning;				       /* thinning */
-	int mcmc_niter;					       /* number of iterations: 0 is infinite */
+	int mcmc_niter;				       /* number of iterations: 0 is infinite */
 	int reorder;					       /* reorder strategy: -1 for optimize */
-	int mcmc_fifo;					       /* use fifo to communicate in mcmc mode */
+	int mcmc_fifo;				       /* use fifo to communicate in mcmc mode */
 	int mcmc_fifo_pass_data;			       /* use fifo to communicate in mcmc mode, pass also all data */
 } G_tp;
 
