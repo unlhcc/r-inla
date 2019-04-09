@@ -6,6 +6,11 @@
 \usepackage{verbatim}
 \begin{document}
 
+This page have moved to a vignette, and can be viewed with
+\begin{center}
+    \texttt{vignette("rgeneric", package="INLA")}
+\end{center}
+\end{document}
 
 \section*{Model \textbf{rgeneric}}
 
@@ -128,6 +133,9 @@ are fixed.  The skeleton-function for defining a model is
                 "log.prior", "quit"),
         theta = NULL)
 {
+    ## the environment of this function
+    envir = parent.env(environment())
+
     graph = function(){ <to be completed> }
     Q = function() { <to be completed> }
     mu = function() { <to be completed> }
@@ -141,7 +149,11 @@ are fixed.  The skeleton-function for defining a model is
 }
 \end{verbatim}
 }
-The input parameters are
+%%
+The \verb|envir| is the environment of this function, for which
+variables defined in \verb|inla.rgeneric.define| is stored. It can
+also be used to store intermediate calculations that needs to be done
+once only. The input parameters are
 \begin{description}
 \item[cmd] What to return
 \item[theta] The values of the $\theta$-parameters
@@ -377,7 +389,10 @@ predefined in the \texttt{INLA}-library.
     ## the AR-1 model as described in inla.doc("ar1"), where 'rho' is
     ## the lag-1 correlation and 'prec' is the *marginal* (not
     ## conditional) precision.
-    
+
+    ## the environment of this function
+    envir = parent.env(environment())
+
     interpret.theta = function()
     {
         ## internal helper-function to map the parameters from the internal-scale to the
@@ -509,6 +524,9 @@ run this model in \texttt{R}, you may do \texttt{demo(rgeneric)}.
     ## this is an example of the 'rgeneric' model. here we implement the iid model as described
     ## in inla.doc("iid"), without the scaling-option
 
+    ## the environment of this function
+    envir = parent.env(environment())
+
     interpret.theta = function()
     {
         return (list(prec = exp(theta[1L])))
@@ -569,6 +587,36 @@ run this model in \texttt{R}, you may do \texttt{demo(rgeneric)}.
 {\small
 \verbatiminput{rgeneric-example-3.R}
 }
+
+\section*{Example: Getting access to external functions}
+
+In the case you need to user external functions/variables within the rgeneric
+definition, you can either
+\begin{itemize}
+\item define them when calling \verb|inla.rgeneric.define|, like
+    \begin{quote}
+        \verb|inla.rgeneric.define(..., my.fun = my.fun)|
+    \end{quote}
+    and then \verb|my.fun| will be defined in the environment of the
+    rgeneric definition.
+\item pass  the variable \verb|first.time|
+    \begin{quote}
+        \verb|inla.rgeneric.define(..., first.time = TRUE)|
+    \end{quote}
+    and in the rgeneric definition, add
+\begin{verbatim}
+    if (first.time) {
+        ## do stuff here, like
+        source("my-external-funcs.R")
+
+        ## no need to do this more than once
+        first.time <<- FALSE
+    }
+\end{verbatim}
+before evaluating any of the internal functions. Here you can f.ex
+source code setting up the functions you like, or something similar. 
+\end{itemize}
+
 
 
 \end{document}
