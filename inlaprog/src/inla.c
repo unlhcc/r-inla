@@ -76,9 +76,12 @@ static const char RCSId[] = HGVERSION;
 #undef ISNAN
 #endif
 
-
 #include "GMRFLib/GMRFLib.h"
 #include "GMRFLib/GMRFLibP.h"
+
+#if !defined(INLA_TAG)
+#  define INLA_TAG "work"
+#endif
 
 //#include <openssl/sha.h>                                     /* Would also work with this library... */
 #include "sha1.h"					       /* instead of this one */
@@ -10360,7 +10363,7 @@ int inla_parse_problem(inla_tp * mb, dictionary * ini, int sec, int make_dir)
 	 * parse section = PROBLEM
 	 */
 	int i, ok;
-	char *secname = NULL, *tmp = NULL, *tmpp = NULL, *smtp = NULL, *openmp_strategy = NULL;
+	char *secname = NULL, *tmp = NULL, *tmpp = NULL, *smtp = NULL, *openmp_strategy = NULL, *rinla_tag = NULL;
 
 	if (mb->verbose) {
 		printf("\tinla_parse_problem...\n");
@@ -10373,6 +10376,16 @@ int inla_parse_problem(inla_tp * mb, dictionary * ini, int sec, int make_dir)
 	if (mb->verbose) {
 		printf("\t\tname=[%s]\n", mb->name);
 	}
+
+	rinla_tag = GMRFLib_strdup(iniparser_getstring(ini, inla_string_join(secname, "RINLA.TAG"), GMRFLib_strdup("UNKNOWN")));
+	if (mb->verbose) {
+		printf("\t\tR-INLA tag=[%s]\n", rinla_tag);
+		printf("\t\tBuild tag=[%s]\n", INLA_TAG);
+		if (strcmp(rinla_tag, INLA_TAG)) {
+			printf("\t\t***WARNING*** 'R-INLA tag' and 'Build tag' differ!\n");
+		}
+	}
+
 	openmp_strategy = GMRFLib_strdup(iniparser_getstring(ini, inla_string_join(secname, "OPENMP.STRATEGY"), GMRFLib_strdup("DEFAULT")));
 	if (mb->verbose) {
 		printf("\t\topenmp.strategy=[%s]\n", openmp_strategy);
