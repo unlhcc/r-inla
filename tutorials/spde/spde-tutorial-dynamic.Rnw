@@ -1,7 +1,9 @@
 \section{Dynamic regression example}\label{sec:dynamic} 
 
-The R source for this file is available at
-\url{http://www.math.ntnu.no/inla/r-inla.org/tutorials/spde/R/spde-tutorial-dynamic.R}
+This content is part of the book available at
+\url{http://www.r-inla.org/spde-book},
+whose Gitbook version is freely available
+along all the code and datasets.
 
 
 <<opts,echo=F,results='hide',message=FALSE,warning=FALSE>>=
@@ -80,7 +82,7 @@ we can use the \texttt{rMatern()}
 function defined in the Section~\ref{sec:simulatoy}
 to simulate independent random field realizations for each time.  
 This function is available in the file at 
-\url{http://www.math.ntnu.no/inla/r-inla.org/tutorials/spde/R/spde-tutorial-functions.R}
+\url{http://inla.r-inla-download.org/r-inla.org/tutorials/spde/R/spde-tutorial-functions.R}
 
 We draw $k$ (number of time points) samples from the random field. 
 Then, we make it temporally correlated considering the time autoregression 
@@ -147,11 +149,14 @@ i1 <- inla.spde.make.index('i1', spde$n.spde, n.group=k)
 
 In the SPDE approach, the space-time model is defined in a set of mesh nodes. 
 As we have considered continuous time, it is also defined on a set of time knots. 
-So, we have to deal with the projection from the model domain (nodes, knots) to 
-the space-time data locations. 
+So, we have to deal with the projection from the model 
+domain (nodes, knots) to the space-time data locations. 
 For the intercept it is the same way as in the other examples. 
-For the regression coefficients, we need to account for the covariate value in the projection matrix. 
-It can be seen as follows 
+For the regression coefficients, all we need to multiply 
+the projector matrix by the covariate vector columnwie, 
+i. e., each column of the projector matrix 
+is multiplyed by the covariate vector.  
+It can be seen from the following 
 \begin{eqnarray}
 \boldeta & = & \mu_{\beta_0} + \mu_{\beta_2}\mb{h} + 
 \mb{A} \mb{\beta}_0 + (\mb{A} \mb{\beta}_1) \mb{h} \nonumber \\

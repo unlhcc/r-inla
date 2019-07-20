@@ -13,7 +13,7 @@
 ##!\alias{plot.inla.graph}
 ##!\alias{print.inla.graph.summary}
 ##!\title{Read and write a graph-object}
-##!\description{Reads a graph-object to a file and write graph-object to file}
+##!\description{Construct a graph-object from a file or a matrix; write graph-object to file}
 ##!\usage{
 ##!inla.read.graph(..., size.only = FALSE)
 ##!inla.write.graph(graph, filename = "graph.dat", mode = c("binary", "ascii"), ...)
@@ -36,7 +36,7 @@
 ##!    \item{y}{Not used}
 ##!    \item{size.only}{Only read the size of the graph}
 ##!    \item{...}{Additional arguments. In \code{inla.read.graph},
-##!               then it is the graph definition (object, character, filename),  plus extra arguments.
+##!               then it is the graph definition (object, matrix, character, filename),  plus extra arguments.
 ##!               In \code{inla.write.graph} it is extra arguments to \code{inla.read.graph}.}
 ##!}
 ##!\value{
@@ -44,15 +44,13 @@
 ##!    \item{n}{is the size of the graph}
 ##!    \item{nnbs}{is a vector with the number of neigbours}
 ##!    \item{nbs}{is a list-list with the neigbours}
-##!    \item{cc}{list with connected component information (this entry can be auto-generated; see below)
+##!    \item{cc}{list with connected component information
 ##!        \itemize{
 ##!            \item{\code{id}}{is a vector with the connected component id for each node (starting from 1)}
 ##!            \item{\code{n}}{is the number of connected components}
 ##!            \item{\code{nodes}}{is a list-list of nodes belonging to each connected component}
 ##!        }
 ##!    }
-##!    The connected component information,  can be generated from the rest of the graph-structure,
-##!    using \code{graph = inla.add.graph.cc(graph)} if you manually construct the \code{inla.graph}-object.
 ##!    Methods implemented for \code{inla.graph} are \code{summary} and \code{plot}.
 ##!    The method \code{plot} require the libraries \code{Rgraphviz} and \code{graph} from the Bioconductor-project,
 ##!    see \url{https://www.bioconductor.org}.
@@ -62,7 +60,7 @@
 ##!    \code{\link{inla.spy}}
 ##!}
 ##!\examples{
-##!## a graph on a file
+##!## a graph from a file
 ##!cat("3 1 1 2 2 1 1 3 0\n", file="g.dat")
 ##!g = inla.read.graph("g.dat")
 ##!## writing an inla.graph-object to file
@@ -70,13 +68,27 @@
 ##!## re-reading it from that file
 ##!gg = inla.read.graph(g.file)
 ##!summary(g)
+##!##
+##!Not run:
 ##!plot(g)
 ##!inla.spy(g)
-##!## when defining the graph directly in the call, we can use a mix of character and numbers
+##!## when defining the graph directly in the call, 
+##!## we can use a mix of character and numbers
 ##!g = inla.read.graph(c(3, 1, "1 2 2 1 1 3", 0))
 ##!inla.spy(c(3, 1, "1 2 2 1 1 3 0"))
 ##!inla.spy(c(3, 1, "1 2 2 1 1 3 0"),  reordering=3:1)
 ##!inla.write.graph(c(3, 1, "1 2 2 1 1 3 0"))
+##!
+##!## building a graph from adjacency matrix
+##!adjacent = matrix(0, nrow = 4, ncol = 4)
+##!adjacent[1,4] = adjacent[4,1] = 1
+##!adjacent[2,4] = adjacent[4,2] = 1
+##!adjacent[2,3] = adjacent[3,2] = 1
+##!adjacent[3,4] = adjacent[4,3] = 1
+##!g = inla.read.graph(adjacent)
+##!plot(g)
+##!summary(g)
+##!End(Not run)
 ##!}
 
 `inla.graph.binary.file.magic` = function()
@@ -386,7 +398,8 @@
     args = list(...)
     graph = args[[1L]]
 
-    if (is.character(graph) || length(args) > 1L || is.numeric(graph)) {
+    if (is.character(graph) || length(args) > 1L ||
+        (is.numeric(graph) && !(is.matrix(graph) || is(graph, "Matrix")))) {
         graph = paste(as.character(graph))
 
         ## if the file exists, its a file
@@ -414,32 +427,13 @@
             return (graph)
         }
     } else if (inherits(graph, "nb")) {
-        ## a neigbour-graph from spdep with class="nb". this can replace spdep::nb2INLA
-        nb2sparseM = function(nb) {
-            n <- length(nb)
-            ## its faster to pre-allocate instead of doing ii=c(ii, ...) all the time
-            len.tot = n + sum(unlist(lapply(graph, length)))
-            ii = numeric(len.tot)
-            jj = numeric(len.tot)
-            idxs = 1:n
-            idx = n+1
-            ii[idxs] = idxs
-            jj[idxs] = idxs
-            for (i in 1:n) {
-                nneig = length(nb[[i]])
-                if (nneig > 0) {
-                    idxs = idx:(idx + nneig -1)
-                    idx = idx + nneig
-                    ii[idxs] = i
-                    jj[idxs] = nb[[i]]
-                }
-            } 
-            ## just check that we have counted correcly
-            stopifnot(idx == length(ii) + 1)
-            return (sparseMatrix(dims = c(n, n), index1 = TRUE, 
-                                 i=ii, j=jj, x = rep(1, length(ii))))
-        }
-        return (inla.matrix2graph.internal(nb2sparseM(graph), size.only = size.only))
+        ## a neigbour-graph from spdep with class="nb".
+        ## this can replace spdep::nb2INLA.
+        ## call spdep::nb2listw and use spdep coercion.
+        inla.require("spdep")
+        Q = spdep::nb2listw(graph, style="B", zero.policy=TRUE)
+        Q = inla.as.sparse(as(Q, "symmetricMatrix"))
+        return (inla.matrix2graph.internal(Q, size.only = size.only))
     } else {
         return (inla.matrix2graph.internal(..., size.only = size.only))
     }
@@ -506,7 +500,7 @@
 `plot.inla.graph` = function(x, y, ...)
 {
     ## these are default options to plot for class inla.graph
-    filter = filter.args = c("neato", "fdp")
+    filter = filter.args = c("neato", "dot", "fdp", "twopi")
     attrs = NULL
     scale = 0.5
     node.names = NULL

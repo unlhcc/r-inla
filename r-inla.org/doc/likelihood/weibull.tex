@@ -36,9 +36,11 @@ The parameter $\lambda$ is linked to the linear predictor as:
 
 The $\alpha$ parameter is represented as
 \[
-    \theta = \log\alpha
+    \alpha = \exp(S\theta)
 \]
-and the prior is defined on $\theta$.
+and the prior is defined on $\theta$. The constant $S$ currently set
+to $0.1$ to avoid numerical instabilities in the optimization, since
+small changes of $\alpha$ can make a huge difference.
 
 \subsection*{Specification}
 
@@ -69,7 +71,7 @@ case \verbatiminput{example-weibull.R}
 \subsection*{Notes}
 
 \begin{itemize}
-\item Weibull model can be used for right censored, left censored,
+\item Weibullsurv model can be used for right censored, left censored,
     interval censored data. If the observed times $y$ are large/huge,
     then this can cause numerical overflow in the likelihood routine.
     If you encounter this problem, try to scale the observatios,
