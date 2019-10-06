@@ -116,10 +116,19 @@
 
 `inla.call.builtin` = function()
 {
+    ## cannot call inla.getOption() here as it leads to an infinite recursive call. do this
+    ## manually instead.
+    if (exists("inla.options", env = inla.get.inlaEnv())) {
+        opt = get("inla.options", env = inla.get.inlaEnv())
+        mkl = if (!is.null(opt$mkl) && opt$mkl) "mkl." else ""
+    } else {
+        mkl = ""
+    }
+
     if (inla.os("mac")) {
-        fnm = system.file(paste("bin/mac/", inla.os.32or64bit(), "bit/inla.run", sep=""), package="INLA")
+        fnm = system.file(paste("bin/mac/", inla.os.32or64bit(), "bit/inla.", mkl, "run", sep=""), package="INLA")
     } else if (inla.os("linux")) {
-        fnm = system.file(paste("bin/linux/", inla.os.32or64bit(), "bit/inla.run", sep=""), package="INLA")
+        fnm = system.file(paste("bin/linux/", inla.os.32or64bit(), "bit/inla.", mkl, "run", sep=""), package="INLA")
     } else if (inla.os("windows")) {
         fnm = system.file(paste("bin/windows/", inla.os.32or64bit(), "bit/inla.exe", sep=""), package="INLA")
     } else {
@@ -215,7 +224,9 @@
     tmp.env = new.env()
     for (ff in files) {
         fff = paste(dir, "/", ff, sep="")
-        local({source(fff, local=TRUE)}, envir = tmp.env)
+        res = try(local({source(fff, local=TRUE)}, envir = tmp.env))
+        if (class(res) %in% "try-error")
+            warning(paste0("Got an error while sourcing file ",  fff))
     }
 
     ## replace the ones in the INLA-namespace
@@ -249,13 +260,13 @@
     cat("Source files in ", dir, ". Loaded ", length(files), " files and replaced ", nfuncs, " functions.\n", sep="")
 
     if (binaries) {
-        inla.setOption("inla.call", paste(bin.path, "/", "inla", sep=""))
-        inla.setOption("fmesher.call", paste(bin.path, "/", "fmesher", sep=""))
-        cat("Define new values for 'inla.call' and 'fmesher.call': ", bin.path, "/{inla,fmesher}\n", sep="")
+        inla.setOption("inla.call", path.expand(paste(bin.path, "/", "inla", sep="")))
+        inla.setOption("fmesher.call", path.expand(paste(bin.path, "/", "fmesher", sep="")))
+        cat("Define new values for 'inla.call' and 'fmesher.call'\n", sep="")
     }
 
     ## hash the models again
-    assign("hgid", "hash it again, please!", envir = inla.get.inlaEnv())
+    assign("hgid", "(Undefined)", envir = inla.get.inlaEnv())
     assign("inla.models", NULL, envir = inla.get.inlaEnv())
     cat("Reset stored 'inla.models()' in .inlaEnv\n")
 
@@ -352,10 +363,11 @@
 `inla.is.list.of.lists` = function(a.list)
 {
     ## return TRUE if `a.list' is a list of lists, otherwise FALSE
-    if (length(a.list) == 0)
+    if (length(a.list) == 0) {
         return (FALSE)
-    else
-        return (all(sapply(a.list, is.list)))
+    } else {
+        return (is.null(names(a.list)) && all(sapply(a.list, is.list)))
+    }
 }
 
 `inla.as.list.of.lists` = function(a)
@@ -491,8 +503,9 @@
 `inla.tempdir` = function()
 {
     ## just replace \ in Windows with /
-
-    return (gsub("\\\\", "/", tempdir()))
+    t.dir = tempfile()
+    inla.dir.create(t.dir)
+    return (gsub("\\\\", "/", t.dir))
 }
 
 
@@ -949,12 +962,9 @@
 ##
 `inla.mclapply` = function(..., mc.cores = NULL, parallel = TRUE)
 {
-    if (parallel && inla.require("parallel") && !inla.os("windows")) {
+    if (parallel && !inla.os("windows")) {
         if (is.null(mc.cores)) {
             mc.cores = inla.getOption("num.threads")
-            if (is.null(mc.cores)) {
-                mc.cores = parallel::detectCores()
-            }
         }
         return (parallel::mclapply(..., mc.cores = mc.cores))
     } else {
@@ -1051,9 +1061,113 @@
 {
     if (inla.os("linux")) {
         ## setup the static builds instead
+        mkl = inla.getOption("mkl")
+        if (is.null(mkl)) mkl = FALSE
         d = dirname(inla.call.builtin())
-        inla.setOption(inla.call = paste(d,"/inla.static", sep=""))
+        inla.setOption(inla.call = paste(d, "/inla.", if (mkl) "mkl." else "", "static", sep=""))
         inla.setOption(fmesher.call = paste(d,"/fmesher.static", sep=""))
     }
     return (invisible())
+}
+
+`inla.matern.cf` = function(dist, range = 1, nu = 0.5) 
+{
+    ## the matern correlation function, with parameter 'range' as defined for the SPDE models.
+    ## this function can vectorize over 'dist'
+    kappa = sqrt(8.0 * nu) / range  ## this the definition used
+    d = kappa * dist
+    res = numeric(length(dist))
+    is.zero = (dist == 0.0)
+    d = d[!is.zero]
+    res[is.zero] = 1.0
+    res[!is.zero] = 1.0 / 2.0^(nu - 1.0) / gamma(nu) * d^nu * besselK(d, nu)
+    return (res)
+}
+
+
+`inla.binary.install` = function(debug = TRUE) 
+{
+    ## install alternative binary builds
+    
+    show = function(...) {
+        if (debug) {
+            msg = paste(unlist(list(...)), sep="", collapse="")
+            cat("* ", msg, "\n", sep="")
+        }
+    }
+
+    map.filename = function(fnm) {
+        return (gsub(" ", "%20", fnm))
+    }
+
+    stopifnot(inla.os.type() == "linux")
+    version = paste("Version_", inla.version("version"), sep="")
+    show("Looking for ", version)
+    
+    address = "https://inla.r-inla-download.org/Linux-builds"
+    Files = paste0(address, "/FILES")
+    fp = url(Files, open="r")
+    ff = readLines(fp)
+    close(fp)
+    ff = ff[grep(version, ff)]
+    nf = length(ff)
+    cat("  Available alternatives:\n")
+    for(i in seq_len(nf)) {
+        cat("  \t", paste0("Alternative ", i), " is ", ff[i], "\n")
+    }
+    cat("  ", "Chose alternative [", 1, ":", nf, "]", sep="", "\n\t")
+    ans = scan(file="", what = integer(), n=1, quiet=TRUE)
+    if (!(ans %in% seq_len(nf)))
+        stop("Not a valid choice. Exit.")
+    fnm = paste0(address, "/", ff[ans])
+    show("Install file [", fnm, "]")
+    pa = searchpaths()
+    pa = pa[grep("/INLA$", pa)]
+    stopifnot(file.info(pa)$isdir)
+    show("INLA is installed in [", pa, "]")
+    pa = paste0(pa, "/bin/linux")
+
+    show("Download file, please wait...")
+    to.file = paste0(pa, "/64bit-download-", date(), ".tgz")
+    ret = download.file(map.filename(fnm), to.file, quiet = TRUE)
+    if (ret == 0) {
+        show("Download file, please wait...done!")
+    } else {
+        unlink(to.file)
+        stop("Error downloading file. Abort.")
+    }
+
+    my.restore = function() {
+        show("Error. Will try to restore old configuration.")
+        show("If unsuccessful, then reinstall R-INLA.")
+        unlink(from.dir,  recursive=TRUE)
+        unlink(to.file)
+        file.rename(to.dir, from.dir)
+    }
+
+    show("Rename old 64bit directory...")
+    from.dir = paste0(pa, "/64bit")
+    to.dir = paste0(pa, "/64bit-", date())
+    ret = file.rename(from.dir, to.dir)
+    if (ret == TRUE) {
+        show("Rename old 64bit directory...done!")
+    } else {
+        my.restore()
+        stop("Error renaming old 64bit directory. Abort.")
+    }
+
+    show("Unpack file...")
+    ret = untar(to.file, exdir = dirname(to.file), verbose = FALSE)
+    if (ret == 0) {
+        show("Unpack file...done")
+    } else {
+        my.restore()
+        stop("Error unpacking file. Abort.")
+    }
+
+    show("Remove temporary file...") 
+    unlink(to.file)
+    show("Remove temporary file...done!") 
+
+    return(invisible())
 }

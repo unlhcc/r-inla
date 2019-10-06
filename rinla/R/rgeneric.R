@@ -35,7 +35,7 @@
 ##!inla.rgeneric.q(
 ##!        rmodel, 
 ##!        cmd = c("graph", "Q", "mu", "initial", "log.norm.const", "log.prior", "quit"),
-##!        model, theta = NULL)
+##!        theta = NULL)
 ##!}
 ##!
 ##!\arguments{
@@ -71,7 +71,7 @@
     
     ## variables defined the in the define-call, are stored here
     ## (which is in the path)
-    envir = environment(sys.call()[[1]]) 
+    envir = parent.env(environment())
 
     interpret.theta = function()
     {
@@ -95,7 +95,7 @@
                 G = toeplitz(c(1, 1, rep(0, n-2L)))
                 G = inla.as.sparse(G)
             } else {
-                ## faster. we only need to define the lower-triangular of G
+                ## faster. we only need to define the upper-triangular of G
                 i = c(
                     ## diagonal
                     1L, n, 2L:(n-1L),
@@ -123,7 +123,7 @@
             Q[1, 1] = Q[n, n] = param$prec/(1-param$rho^2)
             Q = inla.as.sparse(Q)
         } else {
-            ## faster. we only need to define the lower-triangular Q!
+            ## faster. we only need to define the upper-triangular Q!
             i = c(
                 ## diagonal
                 1L, n, 2L:(n-1L),
@@ -172,8 +172,7 @@
     initial = function()
     {
         ## return initial values
-        ntheta = 2
-        return (rep(1, ntheta))
+        return (rep(1, 2))
     }
 
     quit = function()
@@ -199,7 +198,7 @@
 
     ## variables defined the in the define-call, are stored here
     ## (which is in the path)
-    envir = environment(sys.call()[[1]]) 
+    envir = parent.env(environment())
     
     interpret.theta = function()
     {
@@ -267,10 +266,11 @@
     env = if (length(args) > 0) as.environment(args) else new.env()
     parent.env(env) = .GlobalEnv
     environment(model) = env
-    
+
     rmodel = list(
         f = list(
             model = "rgeneric", 
+            n = dim(model(cmd="graph", theta = NULL))[1], 
             rgeneric = list(
                 definition = if (TRUE) {
                                  model
@@ -316,24 +316,27 @@
     result = NULL
     cmd = match.arg(cmd)
     res = do.call(model$definition, args = list(cmd = cmd, theta = theta))
+    time.ref = proc.time()[3]
+    
     if (cmd %in% "Q") {
         Q = inla.as.sparse(res)
         debug.cat("dim(Q)", dim(Q))
         n = dim(Q)[1L]
         stopifnot(dim(Q)[1L] == dim(Q)[2L])
-        stopifnot(dim(Q)[1L] == n && dim(Q)[2L] == n)
         idx = which(Q@i <= Q@j)
         len = length(Q@i[idx])
         result = c(n, len, Q@i[idx], Q@j[idx], Q@x[idx])
+        Q = NULL
     } else if (cmd %in% "graph") {
+        diag(res) = 1
         G = inla.as.sparse(res)
         stopifnot(dim(G)[1L] == dim(G)[2L])
-        diag(G) = 1
         n = dim(G)[1L]
         idx = which(G@i <= G@j)
         len = length(G@i[idx])
         debug.cat("n", n, "len", len)
         result = c(n, len, G@i[idx], G@j[idx])
+        G = NULL
     } else if (cmd %in% "mu") {
         mu = res
         debug.cat("length(mu)", length(mu))
@@ -356,16 +359,30 @@
     } else {
         stop(paste("Unknown command", cmd))
     }
+    res = NULL
 
+    if (FALSE) {
+        nm = "...cpu.time"
+        envir = environment(model$definition)
+        cpu.time = if (exists(nm, envir, envir)) get(nm, envir = envir) else list()
+        if (is.null(cpu.time[[cmd]])) cpu.time[[cmd]] = list(total.time = 0, n.times = 0)
+        cpu.time[[cmd]] =
+            list(total.time = cpu.time[[cmd]]$total.time + proc.time()[3] - time.ref,
+                 n.times = cpu.time[[cmd]]$n.times + 1)
+        assign(nm, cpu.time, envir = envir)
+    }
+    
     return (as.numeric(result))
 }
-
 
 `inla.rgeneric.q` = function(rmodel,
                              cmd = c("graph", "Q", "mu", "initial", "log.norm.const",
                                      "log.prior", "quit"),
                              theta = NULL) 
 {
+    if (missing(cmd)) {
+        stop("A value for argument 'cmd' is required.")
+    }
     cmd = match.arg(cmd)
     rmodel.orig = rmodel
     if (is.character(rmodel)) {
@@ -392,7 +409,25 @@
 
     res = do.call(what = func, args = list(cmd = cmd, theta = theta))
     if (cmd %in% c("Q", "graph")) {
-        return (inla.as.sparse(res))
+        ## since only the upper triangular matrix (diagonal included) is required return from
+        ## 'do.call', then make sure its symmetric and that diag(Graph) = 1
+        if (cmd %in% "Q") {
+            Q = inla.as.sparse(res)
+        } else {
+            diag(res) = 1
+            Q = inla.as.sparse(res, na.rm = TRUE, zeros.rm = TRUE)
+            Q[Q != 0] = 1
+        }
+        n = dim(Q)[1]
+        idx.eq = which(Q@i == Q@j)
+        idx.gt = which(Q@i < Q@j)
+        Q = sparseMatrix(i = c(Q@i[idx.eq], Q@i[idx.gt], Q@j[idx.gt]),
+                         j = c(Q@j[idx.eq], Q@j[idx.gt], Q@i[idx.gt]),
+                         x = c(Q@x[idx.eq], Q@x[idx.gt], Q@x[idx.gt]),
+                         index1 = FALSE, 
+                         dims = c(n, n),
+                         giveCsparse = FALSE)
+        return (Q)
     } else if (cmd %in% c("mu", "initial", "log.norm.const", "log.prior")) {
         return (c(as.numeric(res)))
     } else if (cmd %in% "quit") {
