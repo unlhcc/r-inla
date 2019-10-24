@@ -1,3 +1,4 @@
+
 /* inla.c
  * 
  * Copyright (C) 2007-2019 Havard Rue
@@ -722,7 +723,7 @@ double map_invsn(double arg, map_arg_tp typ, void *param)
 	double a, alpha, dx = 0.02, p, pp, omega, delta, xi, amax = LINK_SN_AMAX, range = 12.0;
 	double amax3 = gsl_pow_3(amax);
 	void *amax3_ptr = (void *) &amax3;
-	
+
 	if (first) {
 #pragma omp critical
 		if (first) {
@@ -814,7 +815,7 @@ double map_invsn(double arg, map_arg_tp typ, void *param)
 		len = j;
 		// Remove values in 'y' that are to close (difference is to small)
 		GMRFLib_unique_additive2(&len, y, x, GMRFLib_eps(0.75));
-		
+
 		table[id]->alpha = alpha;
 		table[id]->xmin = x[0];
 		table[id]->xmax = x[len - 1];
@@ -1215,7 +1216,7 @@ double map_phi(double arg, map_arg_tp typ, void *param)
 		/*
 		 * local = func(extern) 
 		 */
-		return log((1.0 + arg/range) / (1.0 - arg/range));
+		return log((1.0 + arg / range) / (1.0 - arg / range));
 	case MAP_DFORWARD:
 		/*
 		 * d_extern / d_local 
@@ -4407,6 +4408,12 @@ int inla_read_data_likelihood(inla_tp * mb, dictionary * ini, int sec)
 	case L_BETABINOMIAL:
 		idiv = 3;
 		a[0] = ds->data_observations.nb = Calloc(mb->predictor_ndata, double);
+		break;
+
+	case L_BETABINOMIALNA:
+		idiv = 4;
+		a[0] = ds->data_observations.nb = Calloc(mb->predictor_ndata, double);
+		a[1] = ds->data_observations.betabinomialnb_scale = Calloc(mb->predictor_ndata, double);
 		break;
 
 	case L_ZEROINFLATEDBINOMIAL0:
@@ -8204,7 +8211,8 @@ int loglikelihood_gp(double *logll, double *x, int m, int idx, double *x_vec, do
 	int i;
 	Data_section_tp *ds = (Data_section_tp *) arg;
 	double y = ds->data_observations.y[idx];
-	double xi = map_exp(ds->data_observations.gp_log_shape[GMRFLib_thread_id][0], MAP_FORWARD, NULL);
+	double xi = map_interval(ds->data_observations.gp_intern_tail[GMRFLib_thread_id][0], MAP_FORWARD,
+				 (void *) (ds->data_observations.gp_tail_interval));
 	double alpha = ds->data_observations.quantile;
 	double q, sigma, fac;
 
@@ -8374,6 +8382,48 @@ int loglikelihood_betabinomial(double *logll, double *x, int m, int idx, double 
 
 	LINK_END;
 #undef _LOGGAMMA_INT
+	return GMRFLib_SUCCESS;
+}
+
+int loglikelihood_betabinomialna(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg)
+{
+	/*
+	 * BetaBinomialNA : y ~ BetaBinomial(n, a, b), where logit(p) = a/(a+b), overdispertsion = 1/(a+b+1), and use the normal
+	 * approximation to it
+	 */
+
+	if (m == 0) {
+		return GMRFLib_LOGL_COMPUTE_CDF;
+	}
+
+	int i;
+	Data_section_tp *ds = (Data_section_tp *) arg;
+	double y = ds->data_observations.y[idx];
+	double n = ds->data_observations.nb[idx];
+	double s = ds->data_observations.betabinomialnb_scale[idx];
+	double rho = map_probability(ds->data_observations.betabinomial_overdispersion_intern[GMRFLib_thread_id][0], MAP_FORWARD, NULL);
+	double p, prec, lprec, ypred;
+
+	LINK_INIT;
+	if (m > 0) {
+		for (i = 0; i < m; i++) {
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			ypred = n * p;
+			prec = 1.0 / (n * p * (1.0 - p) * (1.0 + s * (n - 1.0) * rho));
+			lprec = log(prec);
+			logll[i] = LOG_NORMC_GAUSSIAN + 0.5 * (lprec - (SQR(ypred - y) * prec));
+		}
+	} else {
+		double yy = (y_cdf ? *y_cdf : y);
+		for (i = 0; i < -m; i++) {
+			p = PREDICTOR_INVERSE_LINK(x[i] + OFFSET(idx));
+			ypred = n * p;
+			prec = 1.0 / (n * p * (1.0 - p) * (1.0 + s * (n - 1.0) * rho));
+			logll[i] = inla_Phi((yy - ypred) * sqrt(prec));
+		}
+	}
+
+	LINK_END;
 	return GMRFLib_SUCCESS;
 }
 
@@ -11316,6 +11366,9 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 	} else if (!strcasecmp(ds->data_likelihood, "BETABINOMIAL")) {
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_betabinomial;
 		ds->data_id = L_BETABINOMIAL;
+	} else if (!strcasecmp(ds->data_likelihood, "BETABINOMIALNA")) {
+		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_betabinomialna;
+		ds->data_id = L_BETABINOMIALNA;
 	} else if (!strcasecmp(ds->data_likelihood, "ZEROINFLATEDBINOMIAL0")) {
 		ds->loglikelihood = (GMRFLib_logl_tp *) loglikelihood_zeroinflated_binomial0;
 		ds->data_id = L_ZEROINFLATEDBINOMIAL0;
@@ -11878,6 +11931,21 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 				    ds->data_observations.y[i] > ds->data_observations.nb[i] || ds->data_observations.y[i] < 0.0) {
 					GMRFLib_sprintf(&msg, "%s: Binomial data[%1d] (nb,y) = (%g,%g) is void\n", secname,
 							i, ds->data_observations.nb[i], ds->data_observations.y[i]);
+					inla_error_general(msg);
+				}
+			}
+		}
+		break;
+
+	case L_BETABINOMIALNA:
+		// Since we're using a normal approximation, the data can be negative and also larger then nb
+		for (i = 0; i < mb->predictor_ndata; i++) {
+			if (ds->data_observations.d[i]) {
+				if (ds->data_observations.nb[i] <= 0.0 ||
+				    ds->data_observations.betabinomialnb_scale[i] < 0.0) {
+					GMRFLib_sprintf(&msg, "%s: BetaBinomialNA data[%1d] (nb,scale,y) = (%g,%g,%g) is void\n", secname,
+							i, ds->data_observations.nb[i],
+							ds->data_observations.betabinomialnb_scale[i], ds->data_observations.y[i]);
 					inla_error_general(msg);
 				}
 			}
@@ -12452,12 +12520,31 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 		if (!ds->data_fixed && mb->reuse_mode) {
 			tmp = mb->theta_file[mb->theta_counter_file++];
 		}
-		HYPER_NEW(ds->data_observations.gp_log_shape, tmp);
+		HYPER_NEW(ds->data_observations.gp_intern_tail, tmp);
 		if (mb->verbose) {
-			printf("\t\tinitialise log_shape parameter[%g]\n", ds->data_observations.gp_log_shape[0][0]);
+			printf("\t\tinitialise internal_tail[%g]\n", ds->data_observations.gp_intern_tail[0][0]);
 			printf("\t\tfixed=[%1d]\n", ds->data_fixed);
 		}
-		inla_read_prior(mb, ini, sec, &(ds->data_prior), "LOGGAMMA", NULL);
+		inla_read_prior(mb, ini, sec, &(ds->data_prior), "PCGEVTAIL", NULL);
+		ds->data_observations.gp_tail_interval = Calloc(2, double);
+		if (ds->data_prior.id == P_PC_GEVTAIL) {
+			ds->data_observations.gp_tail_interval[0] = ds->data_prior.parameters[1];
+			ds->data_observations.gp_tail_interval[1] = ds->data_prior.parameters[2];
+		} else {
+			// used a fixed interval then
+			ds->data_observations.gp_tail_interval[0] = 0.0;
+			ds->data_observations.gp_tail_interval[1] = 0.5;
+		}
+
+		if (DMIN(ds->data_observations.gp_tail_interval[0], ds->data_observations.gp_tail_interval[1]) < 0.0 ||
+		    DMAX(ds->data_observations.gp_tail_interval[0], ds->data_observations.gp_tail_interval[1]) >= 1.0 ||
+		    ds->data_observations.gp_tail_interval[0] >= ds->data_observations.gp_tail_interval[1]) {
+			inla_error_field_is_void(__GMRFLib_FuncName, secname, "GP.TAIL.INTERVAL", ctmp);
+		}
+		if (mb->verbose) {
+			printf("\t\tgp.tail.interval [%g %g]\n", ds->data_observations.gp_tail_interval[0],
+			       ds->data_observations.gp_tail_interval[1]);
+		}
 
 		/*
 		 * add theta 
@@ -12469,8 +12556,8 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 			mb->theta_tag = Realloc(mb->theta_tag, mb->ntheta + 1, char *);
 			mb->theta_tag_userscale = Realloc(mb->theta_tag_userscale, mb->ntheta + 1, char *);
 			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
-			mb->theta_tag[mb->ntheta] = inla_make_tag("Log shape parameter for the genPareto observations", mb->ds);
-			mb->theta_tag_userscale[mb->ntheta] = inla_make_tag("Shape parameter for the genPareto observations", mb->ds);
+			mb->theta_tag[mb->ntheta] = inla_make_tag("Intern tail parameter for the genPareto observations", mb->ds);
+			mb->theta_tag_userscale[mb->ntheta] = inla_make_tag("Tail parameter for the genPareto observations", mb->ds);
 			GMRFLib_sprintf(&msg, "%s-parameter", secname);
 			mb->theta_dir[mb->ntheta] = msg;
 
@@ -12479,11 +12566,11 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 			mb->theta_from[mb->ntheta] = GMRFLib_strdup(ds->data_prior.from_theta);
 			mb->theta_to[mb->ntheta] = GMRFLib_strdup(ds->data_prior.to_theta);
 
-			mb->theta[mb->ntheta] = ds->data_observations.gp_log_shape;
+			mb->theta[mb->ntheta] = ds->data_observations.gp_intern_tail;
 			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
-			mb->theta_map[mb->ntheta] = map_exp;
+			mb->theta_map[mb->ntheta] = map_interval;
 			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
-			mb->theta_map_arg[mb->ntheta] = NULL;
+			mb->theta_map_arg[mb->ntheta] = (void *) (ds->data_observations.gp_tail_interval);
 			mb->ntheta++;
 			ds->data_ntheta++;
 		}
@@ -13569,6 +13656,52 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
 			mb->theta_tag[mb->ntheta] = inla_make_tag("intern overdispersion for the betabinomial observations", mb->ds);
 			mb->theta_tag_userscale[mb->ntheta] = inla_make_tag("overdispersion for the betabinomial observations", mb->ds);
+			GMRFLib_sprintf(&msg, "%s-parameter", secname);
+			mb->theta_dir[mb->ntheta] = msg;
+
+			mb->theta_from = Realloc(mb->theta_from, mb->ntheta + 1, char *);
+			mb->theta_to = Realloc(mb->theta_to, mb->ntheta + 1, char *);
+			mb->theta_from[mb->ntheta] = GMRFLib_strdup(ds->data_prior.from_theta);
+			mb->theta_to[mb->ntheta] = GMRFLib_strdup(ds->data_prior.to_theta);
+
+			mb->theta[mb->ntheta] = ds->data_observations.betabinomial_overdispersion_intern;
+			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
+			mb->theta_map[mb->ntheta] = map_probability;
+			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
+			mb->theta_map_arg[mb->ntheta] = NULL;
+			mb->ntheta++;
+			ds->data_ntheta++;
+		}
+		break;
+
+	case L_BETABINOMIALNA:
+		/*
+		 * get options related to the betabinomialna
+		 */
+		tmp = iniparser_getdouble(ini, inla_string_join(secname, "INITIAL"), 0.0);
+		ds->data_fixed = iniparser_getboolean(ini, inla_string_join(secname, "FIXED"), 0);
+		if (!ds->data_fixed && mb->reuse_mode) {
+			tmp = mb->theta_file[mb->theta_counter_file++];
+		}
+		HYPER_NEW(ds->data_observations.betabinomial_overdispersion_intern, tmp);
+		if (mb->verbose) {
+			printf("\t\tinitialise overdispersion_intern[%g]\n", ds->data_observations.betabinomial_overdispersion_intern[0][0]);
+			printf("\t\tfixed=[%1d]\n", ds->data_fixed);
+		}
+		inla_read_prior(mb, ini, sec, &(ds->data_prior), "LOGGAMMA", NULL);
+
+		/*
+		 * add theta 
+		 */
+		if (!ds->data_fixed) {
+			mb->theta = Realloc(mb->theta, mb->ntheta + 1, double **);
+			mb->theta_hyperid = Realloc(mb->theta_hyperid, mb->ntheta + 1, char *);
+			mb->theta_hyperid[mb->ntheta] = ds->data_prior.hyperid;
+			mb->theta_tag = Realloc(mb->theta_tag, mb->ntheta + 1, char *);
+			mb->theta_tag_userscale = Realloc(mb->theta_tag_userscale, mb->ntheta + 1, char *);
+			mb->theta_dir = Realloc(mb->theta_dir, mb->ntheta + 1, char *);
+			mb->theta_tag[mb->ntheta] = inla_make_tag("intern overdispersion for the betabinomialna observations", mb->ds);
+			mb->theta_tag_userscale[mb->ntheta] = inla_make_tag("overdispersion for the betabinomialna observations", mb->ds);
 			GMRFLib_sprintf(&msg, "%s-parameter", secname);
 			mb->theta_dir[mb->ntheta] = msg;
 
@@ -15805,7 +15938,7 @@ int inla_parse_data(inla_tp * mb, dictionary * ini, int sec)
 
 			double *amax3 = Calloc(1, double);
 			*amax3 = gsl_pow_3(LINK_SN_AMAX);
-			
+
 			mb->theta_map = Realloc(mb->theta_map, mb->ntheta + 1, map_func_tp *);
 			mb->theta_map[mb->ntheta] = map_phi;
 			mb->theta_map_arg = Realloc(mb->theta_map_arg, mb->ntheta + 1, void *);
@@ -25143,8 +25276,8 @@ double extra(double *theta, int ntheta, void *argument)
 					 * we only need to add the prior, since the normalisation constant due to the likelihood, is included in the likelihood
 					 * function.
 					 */
-					log_shape = theta[count];
-					val += PRIOR_EVAL(ds->data_prior, &log_shape);
+					double log_tail = theta[count];
+					val += PRIOR_EVAL(ds->data_prior, &log_tail);
 					count++;
 				}
 				break;
@@ -25376,6 +25509,7 @@ double extra(double *theta, int ntheta, void *argument)
 				break;
 
 			case L_BETABINOMIAL:
+			case L_BETABINOMIALNA:
 				if (!ds->data_fixed) {
 					/*
 					 * we only need to add the prior, since the normalisation constant due to the likelihood, is included in the likelihood
@@ -33668,35 +33802,33 @@ int testit(int argc, char **argv)
 
 	case 33:
 	{
-		double xx, yy, h=1.0e-4, range = 1.123;
+		double xx, yy, h = 1.0e-4, range = 1.123;
 
-		for(xx=1.2; xx < 3.0; xx += 0.35) {
+		for (xx = 1.2; xx < 3.0; xx += 0.35) {
 			yy = map_phi(xx, MAP_FORWARD, NULL);
 			printf("xx %g yy %g  xx.inv %g deriv %g dderiv %g\n",
 			       xx, yy,
 			       map_phi(yy, MAP_BACKWARD, NULL),
 			       map_phi(xx, MAP_DFORWARD, NULL),
-			       (map_phi(xx+h, MAP_FORWARD, NULL) - map_phi(xx-h, MAP_FORWARD, NULL))/2.0/h);
+			       (map_phi(xx + h, MAP_FORWARD, NULL) - map_phi(xx - h, MAP_FORWARD, NULL)) / 2.0 / h);
 		}
-		for(xx=1.2; xx < 3.0; xx += 0.35) {
+		for (xx = 1.2; xx < 3.0; xx += 0.35) {
 			yy = map_phi(xx, MAP_FORWARD, (void *) &range);
 			printf("xx %g yy %g  xx.inv %g deriv %g dderiv %g\n",
 			       xx, yy,
 			       map_phi(yy, MAP_BACKWARD, (void *) &range),
 			       map_phi(xx, MAP_DFORWARD, (void *) &range),
-			       (map_phi(xx+h, MAP_FORWARD, (void *) &range) - map_phi(xx-h, MAP_FORWARD, (void *)&range))/2.0/h);
+			       (map_phi(xx + h, MAP_FORWARD, (void *) &range) - map_phi(xx - h, MAP_FORWARD, (void *) &range)) / 2.0 / h);
 		}
 		break;
 	}
 
-	case 34: 
+	case 34:
 	{
 		double theta, lambda = 40;
 
-		for(theta= -5; theta <= 5;  theta += 0.01) {
-			printf("theta %g logprior %g\n",
-			       theta,
-			       priorfunc_pc_sn(&theta, &lambda));
+		for (theta = -5; theta <= 5; theta += 0.01) {
+			printf("theta %g logprior %g\n", theta, priorfunc_pc_sn(&theta, &lambda));
 		}
 
 		break;

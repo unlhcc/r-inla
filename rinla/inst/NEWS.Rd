@@ -29,25 +29,31 @@
   }
 }
 
-\section{CHANGES IN VERSION xx.xx.xx}{
-  \subsection{USER-VISIBLE CHANGES}{
-    \itemize{
-      \item 
-    }
-  }
-  \subsection{NEW FEATURES}{
-    \itemize{
-      \item
-    }
-  }
+\section{CHANGES IN VERSION 19.10.16}{
   \subsection{NEW EXPERIMENTAL FEATURES}{
     \itemize{
-      \item
+      \item Likelihoodmodel \code{betabinomialna}
     }
   }
+}
+
+
+\section{CHANGES IN VERSION 19.10.15}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Default prior for the tail parameter in likelihood model
+      \code{gp}, have changed to \code{pc.gevtail}, and the name change
+      from \code{shape} to \code{tail}. It is now required to define a
+      interval for the tail parameter, similar to \code{pc.gevtail}.
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.10.06}{
   \subsection{BUG FIXES}{
     \itemize{
       \item Code-improvement for the \code{loggamma}-function
+      \item \code{barrier.R} updated (minor fix and code edits)
     }
   }
 }
