@@ -15,8 +15,7 @@
  \usage{
      inla.posterior.sample(n = 1L, result, selection = list(), 
                            intern = FALSE,
-                           use.improved.mean = TRUE, skew.corr = TRUE, 
-                           num.cores = 1L,
+                           use.improved.mean = TRUE, 
                            add.names = TRUE, seed = 0L, num.threads = NULL, 
                            verbose=FALSE)
      inla.posterior.sample.eval(fun, samples, return.matrix = TRUE, ...)
@@ -35,23 +34,13 @@
        are negative, they are interpreted as 'not', a zero is interpreted as 'all',  and
        positive indices are interpreted as 'only'. The names of elements of each samples 
        refer to the indices in the full sample. }
-   \item{num.cores}{Number of cores to use in the \code{foreach} package.
-        By default it only exploits one for a serial strategy of 
-        the computations. For \code{num.cores} greater than 1 we are basically
-        creating a single stream of tasks 
-        that can all be executed in parallel. The number of threads employed
-        by \code{inla.qsample},  the argument \code{num.threads},  are matched
-        with the number of cores specified in the option \code{num.cores}.}
+   \item{intern}{Logical. If \code{TRUE} then produce samples in the
+        internal scale for the hyperparmater, if \code{FALSE} then produce
+        samples in the user-scale. (For example log-precision (intern)
+        and precision (user-scale))}
    \item{use.improved.mean}{Logical. If \code{TRUE} then use the
-       marginal mean values when constructing samples. If \code{FALSE}
-       then use the mean in the Gaussian approximations.}
-   \item{skew.corr}{Logical. If \code{TRUE} then correct samples for skewness,
-       if \code{FALSE},  do not correct samples for skewness (ie use the
-       Gaussian).}
-  \item{intern}{Logical. If \code{TRUE} then produce samples in the
-       internal scale for the hyperparmater, if \code{FALSE} then produce
-       samples in the user-scale. (For example log-precision (intern)
-       and precision (user-scale))}
+        marginal mean values when constructing samples. If \code{FALSE}
+        then use the mean in the Gaussian approximations.}
    \item{add.names}{Logical. If \code{TRUE} then add name for each elements of each
        sample. If \code{FALSE}, only add name for the first sample. 
        (This save space.)}
@@ -61,7 +50,7 @@
        If \code{seed < 0L}  then the saved state of the RNG will be reused if possible, otherwise,
        GMRFLib will set the seed intelligently/at 'random'.
        If \code{seed > 0L} then this value is used as the seed for the RNG.
-       If you want reproducible results,  you ALSO need to control the seed for the RNG in R by
+       If you want reproducible results, you ALSO need to control the seed for the RNG in R by
        controlling the variable \code{.Random.seed} or using the function \code{set.seed},
        the example for how this can be done. }
    \item{num.threads}{The number of threads that can be used. \code{num.threads>1L} requires
@@ -84,14 +73,7 @@
        numerical integration, hence if you want a higher resolution, you need to
        to change the \code{int.stratey} variable and friends. The latent field is
        sampled from the Gaussian approximation conditioned on the hyperparameters,
-       but with a correction for the mean (default), and optional (and by default)
-       corrected for the estimated skewness.
-
-       The log.density report is only correct when there is no constraints.
-       With constraints, it correct the Gaussian part of the sample for the constraints.
-       After the sample is (optional) skewness corrected, the log.density
-       is is not exact for correcting for constraints, but the error is very
-       small in most cases.
+       but with a correction for the mean (default). 
 }
 \value{\code{inla.posterior.sample} returns a list of the samples,
        where each sample is a list with
