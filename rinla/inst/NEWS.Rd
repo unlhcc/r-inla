@@ -28,6 +28,58 @@
     }
   }
 }
+\section{CHANGES IN VERSION xx.xx.xx}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item 
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.11.17}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Updated the vignette about the multinomial distribution
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New experimental windows binary built with
+  \code{x86_64-w64-mingw32-gcc}, version 7.3, and linked with the
+  pardiso library. Its stored in \code{bin/windows/experimental}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Updated \code{inla.qreordering} and updated \code{leuk-demo.R}
+      example file (and the corresponding zip-file).
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.11.10}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Cache values of \code{qgamma} to speedup
+      Gamma quantile regression
+    }
+  }
+}
 
 \section{CHANGES IN VERSION 19.10.30}{
   \subsection{USER-VISIBLE CHANGES}{
@@ -41,16 +93,6 @@
     \itemize{
       \item \code{inla.posterior.sample} now correct for possible skewness
       by default: see \code{?inla.posterior.sample} for details.
-    }
-  }
-  \subsection{NEW EXPERIMENTAL FEATURES}{
-    \itemize{
-      \item
-    }
-  }
-  \subsection{BUG FIXES}{
-    \itemize{
-      \item
     }
   }
 }
