@@ -68,5 +68,5 @@ formula = update(p$formula, Y ~ intercept2 -1 + .)
 rr = inla(formula,
         family = c(p$family, "gaussian"),
         data = df.joint,
-        E = df.joint$E)
+        E = df.joint$E..coxph)
 }

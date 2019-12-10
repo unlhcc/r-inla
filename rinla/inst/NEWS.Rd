@@ -29,14 +29,10 @@
   }
 }
 
-
-\section{CHANGES IN VERSION 19.10.xx}{
+\section{CHANGES IN VERSION xx.xx.xx}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
-      \item Default prior for the tail parameter in likelihood model
-      \code{gp}, have changed to \code{pc.gevtail}, and the name change
-      from \code{shape} to \code{tail}. It is now required to define a
-      interval for the tail parameter, similar to \code{pc.gevtail}.
+      \item 
     }
   }
   \subsection{NEW FEATURES}{
@@ -51,12 +47,88 @@
   }
   \subsection{BUG FIXES}{
     \itemize{
-      \item
+      \item Improved documentation of \code{inla.posterior.sample} and \code{inla.coxph}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.12.03}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Updated some documentation about the \code{pc.gevtail} prior.
+      \item Reverted \code{inla.posterior.sample} back to the old
+      version, the new experimental version is available as
+      \code{INLA:::inla.posterior.sample.new}
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.11.17}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Updated the vignette about the multinomial distribution
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item New experimental windows binary built with
+  \code{x86_64-w64-mingw32-gcc}, version 7.3, and linked with the
+  pardiso library. Its stored in \code{bin/windows/experimental}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Updated \code{inla.qreordering} and updated \code{leuk-demo.R}
+      example file (and the corresponding zip-file).
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.11.10}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Cache values of \code{qgamma} to speedup
+      Gamma quantile regression
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.10.30}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Added a scaling constant for the precision parameter in the
+      \code{qkumar} likelihood (to avoid instabilities). See updated
+      documentation for details.
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{inla.posterior.sample} now correct for possible skewness
+      by default: see \code{?inla.posterior.sample} for details.
     }
   }
 }
 
 
+\section{CHANGES IN VERSION 19.10.16}{
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item Likelihoodmodel \code{betabinomialna}
+    }
+  }
+}
+
+
+\section{CHANGES IN VERSION 19.10.15}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Default prior for the tail parameter in likelihood model
+      \code{gp}, have changed to \code{pc.gevtail}, and the name change
+      from \code{shape} to \code{tail}. It is now required to define a
+      interval for the tail parameter, similar to \code{pc.gevtail}.
+    }
+  }
+}
 
 \section{CHANGES IN VERSION 19.10.06}{
   \subsection{BUG FIXES}{

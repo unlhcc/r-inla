@@ -6727,12 +6727,12 @@ inla.models()
 							\item{hyperid = }{`60001'}
 							\item{name = }{`precision parameter'}
 							\item{short.name = }{`prec'}
-							\item{initial = }{`0'}
+							\item{initial = }{`1'}
 							\item{fixed = }{`FALSE'}
 							\item{prior = }{`loggamma'}
-							\item{param = }{`1 0.001'}
-							\item{to.theta = }{`\code{function(x) log(x)}'}
-							\item{from.theta = }{`\code{function(x) exp(x)}'}
+							\item{param = }{`1 0.1'}
+							\item{to.theta = }{`\code{function(x, sc = 0.1) log(x)/sc}'}
+							\item{from.theta = }{`\code{function(x, sc = 0.1) exp(sc*x)}'}
 							}
 						}
 					 }
@@ -6856,6 +6856,34 @@ inla.models()
 								\item{discrete = }{`TRUE'}
 								\item{link = }{`default logit cauchit probit cloglog loglog robit sn'}
 								\item{pdf = }{`betabinomial'}
+							 }
+						 }
+					 }
+				 }
+				\item{Model `betabinomialna'.}{Number of hyperparmeters are 1.
+					 \describe{
+						\item{Hyperparameter `theta'}{
+							 \describe{
+							\item{hyperid = }{`62101'}
+							\item{name = }{`overdispersion'}
+							\item{short.name = }{`rho'}
+							\item{initial = }{`0'}
+							\item{fixed = }{`FALSE'}
+							\item{prior = }{`gaussian'}
+							\item{param = }{`0 0.4'}
+							\item{to.theta = }{`\code{function(x) log(x/(1-x))}'}
+							\item{from.theta = }{`\code{function(x) exp(x)/(1+exp(x))}'}
+							}
+						}
+					 }
+					 \describe{
+						\item{Properties:}{
+							\describe{
+								\item{doc = }{`The Beta-Binomial Normal approximation likelihood'}
+								\item{survival = }{`FALSE'}
+								\item{discrete = }{`TRUE'}
+								\item{link = }{`default logit cauchit probit cloglog loglog robit sn'}
+								\item{pdf = }{`betabinomialna'}
 							 }
 						 }
 					 }

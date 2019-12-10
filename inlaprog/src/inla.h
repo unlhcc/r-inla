@@ -49,6 +49,7 @@ __BEGIN_DECLS
 #include "fgn.h"
 #include "stochvol.h"
 #include "quantile-regression.h"
+
 #define LOG_NORMC_GAUSSIAN (-0.91893853320467274178032973640560)	/* -1/2 * log(2*pi) */
 #define INLA_FAIL  1
 #define INLA_OK    0
@@ -59,9 +60,17 @@ __BEGIN_DECLS
 
 /*
  * The scaling of the critical 'alpha' parameter. If this value change, it must also be changed in models.R
+ *
  * YES, CHANGE IT MANUALLY!
  */
 #define INLA_WEIBULL_ALPHA_SCALE 0.10
+
+/*
+ * The scaling of the critical 'precision' parameter. If this value change, it must also be changed in models.R 
+ *
+ * YES, CHANGE IT MANUALLY!
+ */
+#define INLA_QKUMAR_PREC_SCALE 0.10
 
 /* 
  * The maximum skewness parameter in the LINK_SN, where this is the 1/3-root of 'aa' as in the term Phi(aa*x). 3.2 gives aa =
@@ -286,9 +295,10 @@ typedef struct {
 	double **zero_n_inflated_alphaN_intern;
 
 	/*
-	 * the overdispersion parameter for the betabinomial, \rho = 1/(a+b+1).
+	 * the overdispersion parameter for the betabinomial and betabinomialna, \rho = 1/(a+b+1).
 	 */
 	double **betabinomial_overdispersion_intern;
+	double *betabinomialnb_scale;
 
 	/*
 	 * the precision parameter for the beta, \phi = exp(theta)
@@ -521,6 +531,7 @@ typedef enum {
 	L_GEV2,
 	L_NBINOMIAL2,
 	L_GAMMASURV,
+	L_BETABINOMIALNA,
 	F_RW2D = 1000,					       /* f-models */
 	F_BESAG,
 	F_BESAG2,					       /* the [a*x, x/a] model */
@@ -1518,6 +1529,7 @@ double link_this_should_not_happen(double x, map_arg_tp typ, void *param, double
 double map_1exp(double arg, map_arg_tp typ, void *param);
 double map_H(double x, map_arg_tp typ, void *param);
 double map_alpha_weibull(double arg, map_arg_tp typ, void *param);
+double map_prec_qkumar(double arg, map_arg_tp typ, void *param);
 double map_beta(double arg, map_arg_tp typ, void *param);
 double map_dof(double arg, map_arg_tp typ, void *param);
 double map_dof5(double arg, map_arg_tp typ, void *param);
@@ -1755,6 +1767,7 @@ int inla_wishart3d_adjust(double *rho);
 int inla_write_file_contents(const char *filename, inla_file_contents_tp * fc);
 int loglikelihood_beta(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_betabinomial(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
+int loglikelihood_betabinomialna(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_binomial(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_cbinomial(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_cenpoisson(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
@@ -1782,7 +1795,7 @@ int loglikelihood_lognormal(double *logll, double *x, int m, int idx, double *x_
 int loglikelihood_lognormalsurv(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_logperiodogram(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_mix_core(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg,
-			   int (*quadrature)(double **, double **, int *, void *), int (*simpson)(double **, double **, int *, void *));
+			   int (*quadrature)(double **, double **, int *, void *), int(*simpson)(double **, double **, int *, void *));
 int loglikelihood_mix_loggamma(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_mix_mloggamma(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
 int loglikelihood_nbinomial2(double *logll, double *x, int m, int idx, double *x_vec, double *y_cdf, void *arg);
