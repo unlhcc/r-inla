@@ -29,6 +29,39 @@
   }
 }
 
+\section{CHANGES IN VERSION xx.xx.xx}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item 
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item The function \code{inla.binary.install} is now exported.
+    }
+  }
+  \subsection{NEW EXPERIMENTAL FEATURES}{
+    \itemize{
+      \item
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 19.12.10}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Improved documentation of \code{inla.posterior.sample} and
+      \code{inla.coxph}
+      \item Fixed an issue with \code{NA} data in the family \code{gev2}
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 19.12.03}{
   \subsection{BUG FIXES}{
     \itemize{
