@@ -6266,10 +6266,6 @@ inla.models()
 			 \describe{
 				\item{Model `poisson'.}{Number of hyperparmeters are 0.
 				 }
-				\item{Model `contpoisson'.}{Number of hyperparmeters are 0.
-				 }
-				\item{Model `qcontpoisson'.}{Number of hyperparmeters are 0.
-				 }
 				\item{Model `cenpoisson'.}{Number of hyperparmeters are 0.
 				 }
 				\item{Model `gpoisson'.}{Number of hyperparmeters are 2.
