@@ -9142,6 +9142,35 @@ inla.models()
 						 }
 					 }
 				 }
+				\item{Model `dgp'.}{Number of hyperparmeters are 1.
+					 \describe{
+						\item{Hyperparameter `theta'}{
+							 \describe{
+							\item{hyperid = }{`101201'}
+							\item{name = }{`tail'}
+							\item{short.name = }{`xi'}
+							\item{initial = }{`2'}
+							\item{fixed = }{`FALSE'}
+							\item{prior = }{`pc.gevtail'}
+							\item{param = }{`7 0 0.5'}
+							\item{to.theta = }{`\code{function(x, interval = c(REPLACE.ME.low, REPLACE.ME.high)) log(-(interval[1] - x)/(interval[2] - x))}'}
+							\item{from.theta = }{`\code{function(x, interval = c(REPLACE.ME.low, REPLACE.ME.high)) interval[1] + (interval[2]-interval[1]) * exp(x)/(1.0 + exp(x))}'}
+							}
+						}
+					 }
+					 \describe{
+						\item{Properties:}{
+							\describe{
+								\item{doc = }{`Discrete generalized Pareto likelihood'}
+								\item{status = }{`experimental'}
+								\item{survival = }{`FALSE'}
+								\item{discrete = }{`TRUE'}
+								\item{link = }{`default quantile'}
+								\item{pdf = }{`dgp'}
+							 }
+						 }
+					 }
+				 }
 				\item{Model `logperiodogram'.}{Number of hyperparmeters are 0.
 				 }
 			 }
