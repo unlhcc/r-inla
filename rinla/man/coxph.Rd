@@ -18,13 +18,14 @@
   \item{data}{All the data used in the formula,  as a list.}
   \item{control.hazard}{Control the model for the baseline-hazard; see \code{?control.hazard}.}
   \item{debug}{Print debug-information}
-  \item{...}{Data.frames to be \code{cbind}-ed,  padding with \code{NA}.}
+  \item{...}{Data.frames to be \code{rbind}-ed,  padding with \code{NA}.}
 }
 \value{
       \code{inla.coxph} returns a list of new expanded variables to be used in the \code{inla}-call.
       Note that element \code{data} and \code{data.list} needs to be merged into
       a \code{list} to be passed as the \code{data} argument. See the example for details.
-      \code{inla.rbind.data.frames} returns the new data.frame.
+      \code{inla.rbind.data.frames} returns the new data.frame (an alternative and better
+      implementation is \code{dplyr::bind_rows},  which is used if \code{dplyr} is installed).
 }
 \author{Havard Rue \email{hrue@r-inla.org}}
 \examples{
@@ -68,5 +69,5 @@ formula = update(p$formula, Y ~ intercept2 -1 + .)
 rr = inla(formula,
         family = c(p$family, "gaussian"),
         data = df.joint,
-        E = df.joint$E)
+        E = df.joint$E..coxph)
 }
