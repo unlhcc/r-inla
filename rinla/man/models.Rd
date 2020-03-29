@@ -6314,6 +6314,8 @@ inla.models()
 				 }
 				\item{Model `binomial'.}{Number of hyperparmeters are 0.
 				 }
+				\item{Model `xbinomial'.}{Number of hyperparmeters are 0.
+				 }
 				\item{Model `pom'.}{Number of hyperparmeters are 10.
 					 \describe{
 						\item{Hyperparameter `theta1'}{
