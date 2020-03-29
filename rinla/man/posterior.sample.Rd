@@ -15,7 +15,7 @@
  \usage{
      inla.posterior.sample(n = 1L, result, selection = list(), 
                            intern = FALSE,
-                           use.improved.mean = TRUE, 
+                           use.improved.mean = TRUE, skew.corr = TRUE, 
                            add.names = TRUE, seed = 0L, num.threads = NULL, 
                            verbose=FALSE)
      inla.posterior.sample.eval(fun, samples, return.matrix = TRUE, ...)
@@ -41,6 +41,9 @@
    \item{use.improved.mean}{Logical. If \code{TRUE} then use the
         marginal mean values when constructing samples. If \code{FALSE}
         then use the mean in the Gaussian approximations.}
+   \item{skew.corr}{Logical. If \code{TRUE} then correct samples for skewness,
+       if \code{FALSE},  do not correct samples for skewness (ie use the
+       Gaussian).}
    \item{add.names}{Logical. If \code{TRUE} then add name for each elements of each
        sample. If \code{FALSE}, only add name for the first sample. 
        (This save space.)}
@@ -73,7 +76,15 @@
        numerical integration, hence if you want a higher resolution, you need to
        to change the \code{int.stratey} variable and friends. The latent field is
        sampled from the Gaussian approximation conditioned on the hyperparameters,
-       but with a correction for the mean (default). 
+       but with a correction for the mean (default), 
+        and optional (and by default) corrected for the estimated skewness.
+
+       The log.density report is only correct when there is no constraints.
+       With constraints, it correct the Gaussian part of the sample for the constraints.
+
+       After the sample is (optional) skewness corrected, the log.density
+       is is not exact for correcting for constraints, but the error is very
+       small in most cases.
 }
 \value{\code{inla.posterior.sample} returns a list of the samples,
        where each sample is a list with

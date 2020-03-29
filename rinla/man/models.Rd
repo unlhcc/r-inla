@@ -6314,6 +6314,8 @@ inla.models()
 				 }
 				\item{Model `binomial'.}{Number of hyperparmeters are 0.
 				 }
+				\item{Model `xbinomial'.}{Number of hyperparmeters are 0.
+				 }
 				\item{Model `pom'.}{Number of hyperparmeters are 10.
 					 \describe{
 						\item{Hyperparameter `theta1'}{
@@ -6460,7 +6462,7 @@ inla.models()
 						 }
 					 }
 				 }
-				\item{Model `gev2'.}{Number of hyperparmeters are 12.
+				\item{Model `bgev'.}{Number of hyperparmeters are 12.
 					 \describe{
 						\item{Hyperparameter `theta1'}{
 							 \describe{
@@ -6622,12 +6624,12 @@ inla.models()
 					 \describe{
 						\item{Properties:}{
 							\describe{
-								\item{doc = }{`The Generalized Extreme Value likelihood (2nd variant)'}
+								\item{doc = }{`The blended Generalized Extreme Value likelihood'}
 								\item{status = }{`experimental'}
 								\item{survival = }{`FALSE'}
 								\item{discrete = }{`FALSE'}
 								\item{link = }{`default identity'}
-								\item{pdf = }{`gev2'}
+								\item{pdf = }{`bgev'}
 							 }
 						 }
 					 }

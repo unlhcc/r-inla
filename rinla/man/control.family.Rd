@@ -12,7 +12,7 @@
 \description{Control variables in \code{control.family} for use in \code{inla}}
 \usage{
 inla.set.control.family.default(...)
-control.family(cenpoisson.I, control.gev2, control.link, control.mix, dummy, fixed, gev.scale.xi, hyper, initial, link, param, prior, sn.shape.max, variant)
+control.family(cenpoisson.I, control.bgev, control.link, control.mix, dummy, fixed, gev.scale.xi, hyper, initial, link, param, prior, sn.shape.max, variant)
 }
 \arguments{
 \item{...}{Possible arguments}
@@ -25,7 +25,7 @@ control.family(cenpoisson.I, control.gev2, control.link, control.mix, dummy, fix
 \item{link}{  (OBSOLETE! Use \code{control.link=list(model=)} instead.) The link function to use.}
 \item{sn.shape.max}{  Maximum value for the shape-parameter for Skew Normal observations (default 5.0)}
 \item{gev.scale.xi}{  (Expert option, do not use unless you know what you are doing.) The internal scaling of the shape-parameter for the GEV distribution. (default 0.1)}
-\item{control.gev2}{  See \code{?control.gev2}}
+\item{control.bgev}{  See \code{?control.bgev}}
 \item{cenpoisson.I}{  The censoring interval for the censored Poisson}
 \item{variant}{  This variable is used to give options for various variants of the likelihood, like chosing different parameterisations for example. See the relevant likelihood documentations for options (does only apply to some likelihoods).}
 \item{control.mix}{  See \code{?control.mix}}
@@ -37,6 +37,6 @@ The function \code{control.family} is used to TAB-complete arguments and returns
 The function \code{inla.set.control.family.default} returns a list with all the default values of all parameters within this control statement.
 }
 \seealso{
-\code{\link{control.update}}, \code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.mix}}, \code{\link{control.link}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.gev2.default}}, \code{\link{control.family}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
+\code{\link{control.update}}, \code{\link{control.lincomb}}, \code{\link{control.group}}, \code{\link{control.mix}}, \code{\link{control.link}}, \code{\link{control.expert}}, \code{\link{control.compute}}, \code{\link{control.bgev.default}}, \code{\link{control.family}}, \code{\link{control.fixed}}, \code{\link{control.inla}}, \code{\link{control.predictor}}, \code{\link{control.results}}, \code{\link{control.mode}}, \code{\link{control.hazard}}, 
 \code{\link{inla}}
 }
