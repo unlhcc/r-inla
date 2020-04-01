@@ -27,6 +27,7 @@ inla(
     link.covariates = NULL,
     verbose = FALSE,
     lincomb = NULL,
+    selection = NULL,
     control.compute = list(),
     control.predictor = list(),
     control.family = list(),
@@ -126,12 +127,18 @@ for tstrata likelihood model.}
 \item{verbose}{
 Boolean indicating if the \code{inla}-program should
 run in a verbose mode (default \code{FALSE}).}
-\item{lincomb}{ Used to define linear combination of
+\item{lincomb}{Used to define linear combination of
 nodes in the latent field. The posterior distribution
 of such linear combination is computed by the
 \code{inla} function. See
 \url{www.r-inla.org/faq} for examples of
 how to define such linear combinations.}
+\item{selection}{ This is a similar argument to the one in
+\code{inla.posterior.sample}  and follow the same format. 
+This argument allows to define a subset of the latent field
+for which to compute an approximated joint
+distribution. It will appear in \code{result$selection}.
+See also \code{?inla.rjmarginal}. }
 \item{control.compute}{ See \code{?control.compute}}
 \item{control.predictor}{ See
 \code{?control.predictor}}
@@ -247,9 +254,8 @@ and cdf) of all linear combinations defined.  }
 \item{marginals.lincomb}{
 If \code{lincomb != NULL} a list of
  posterior marginals of all linear combinations defined.  } 
-\item{joint.hyper}{
-A matrix containing the joint density of
-the hyperparameters (in the internal scale) }
+\item{selection}{Provide the approximated joint
+distribution for the \code{selection}}
 \item{dic}{
 If \code{dic}=\code{TRUE} in \code{control.compute}, the
 deviance information criteria and effective number of parameters,
