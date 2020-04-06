@@ -12,7 +12,7 @@
 \description{Control variables in \code{control.link} for use in \code{inla}}
 \usage{
 inla.set.control.link.default(...)
-control.link(fixed, hyper, initial, model, order, param, prior, quantile, variant)
+control.link(a, fixed, hyper, initial, model, order, param, prior, quantile, variant)
 }
 \arguments{
 \item{...}{Possible arguments}
@@ -21,6 +21,7 @@ control.link(fixed, hyper, initial, model, order, param, prior, quantile, varian
 \item{variant}{  The \code{variant} of the link function, where the interpretation of \code{variant} is model-dependent.}
 \item{hyper}{  Definition of the hyperparameter(s) for the link model chosen}
 \item{quantile}{  The quantile for quantile link function}
+\item{a}{  The parameter \code{a} in the LOGa link}
 \item{initial}{  (OBSOLETE!) The initial value(s) for the hyperparameter(s)}
 \item{fixed}{  (OBSOLETE!) A boolean variable if hyperparmater(s) is/are fixed or random}
 \item{prior}{  (OBSOLETE!) The name of the prior distribution(s) for the hyperparmater(s)}
