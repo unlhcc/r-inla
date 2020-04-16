@@ -19,8 +19,14 @@ inla.stack.compress(stack, remove.unused = TRUE)
 
 inla.stack(..., compress = TRUE, remove.unused = TRUE)
 
-inla.stack.sum(data, A, effects, tag = "", compress = TRUE,
-  remove.unused = TRUE)
+inla.stack.sum(
+  data,
+  A,
+  effects,
+  tag = "",
+  compress = TRUE,
+  remove.unused = TRUE
+)
 
 inla.stack.join(..., compress = TRUE, remove.unused = TRUE)
 
