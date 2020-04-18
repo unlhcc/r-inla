@@ -10,13 +10,15 @@
 \title{Convert a Cox proportional hazard model into Poisson regression}
 \description{Tools to convert a Cox proportional hazard model into Poisson regression}
 \usage{
-    inla.coxph(formula, data, control.hazard = list(), debug=FALSE)
+    inla.coxph(formula, data, control.hazard = list(), tag="", debug=FALSE)
     inla.rbind.data.frames(...)
 }
 \arguments{
   \item{formula}{The formula for the coxph model where the reponse must be a \code{inla.surv}-object.}
   \item{data}{All the data used in the formula,  as a list.}
   \item{control.hazard}{Control the model for the baseline-hazard; see \code{?control.hazard}.}
+  \item{tag}{An optional tag added to the names of the new variables created (to make them
+             unique when combined with several calls of \code{inla.coxph}}
   \item{debug}{Print debug-information}
   \item{...}{Data.frames to be \code{rbind}-ed,  padding with \code{NA}.}
 }
@@ -24,8 +26,11 @@
       \code{inla.coxph} returns a list of new expanded variables to be used in the \code{inla}-call.
       Note that element \code{data} and \code{data.list} needs to be merged into
       a \code{list} to be passed as the \code{data} argument. See the example for details.
-      \code{inla.rbind.data.frames} returns the new data.frame (an alternative and better
-      implementation is \code{dplyr::bind_rows},  which is used if \code{dplyr} is installed).
+ 
+      \code{inla.rbind.data.frames} returns the rbinded data.frames padded with NAs.
+      There is a better
+      implementation in \code{dplyr::bind_rows}, which is used if package \code{dplyr} is
+      installed.
 }
 \author{Havard Rue \email{hrue@r-inla.org}}
 \examples{
