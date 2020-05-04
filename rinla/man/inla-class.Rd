@@ -4,7 +4,7 @@
 \alias{inla-class}
 \title{inla}
 \description{
-the inla class is defined in the INLA package
+The inla class is defined in the INLA package
 }
 \seealso{
 \link[INLA]{inla}
