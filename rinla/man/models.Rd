@@ -374,7 +374,7 @@ inla.models()
 						\item{Properties:}{
 							\describe{
 								\item{doc = }{`The shared Besag model'}
-								\item{constr = }{`FALSE'}
+								\item{constr = }{`TRUE'}
 								\item{nrow.ncol = }{`FALSE'}
 								\item{augmented = }{`FALSE'}
 								\item{aug.factor = }{`1'}
