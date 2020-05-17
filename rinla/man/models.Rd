@@ -1045,7 +1045,7 @@ inla.models()
 							\item{name = }{`gamma2'}
 							\item{short.name = }{`g2'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1058,7 +1058,7 @@ inla.models()
 							\item{name = }{`gamma3'}
 							\item{short.name = }{`g3'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1071,7 +1071,7 @@ inla.models()
 							\item{name = }{`gamma4'}
 							\item{short.name = }{`g4'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1084,7 +1084,7 @@ inla.models()
 							\item{name = }{`gamma5'}
 							\item{short.name = }{`g5'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1097,7 +1097,7 @@ inla.models()
 							\item{name = }{`gamma6'}
 							\item{short.name = }{`g6'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1110,7 +1110,7 @@ inla.models()
 							\item{name = }{`gamma7'}
 							\item{short.name = }{`g7'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1123,7 +1123,7 @@ inla.models()
 							\item{name = }{`gamma8'}
 							\item{short.name = }{`g8'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1136,7 +1136,7 @@ inla.models()
 							\item{name = }{`gamma9'}
 							\item{short.name = }{`g9'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
@@ -1149,7 +1149,7 @@ inla.models()
 							\item{name = }{`gamma10'}
 							\item{short.name = }{`g10'}
 							\item{initial = }{`1'}
-							\item{fixed = }{`FALSE'}
+							\item{fixed = }{`TRUE'}
 							\item{prior = }{`normal'}
 							\item{param = }{`1 36'}
 							\item{to.theta = }{`\code{function(x) x}'}
