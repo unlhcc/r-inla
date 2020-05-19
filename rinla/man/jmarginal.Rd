@@ -19,13 +19,15 @@
  }
  
  \usage{
- inla.rjmarginal(n, jmarginal)
+ inla.rjmarginal(n, jmarginal, constr)
  inla.rjmarginal.eval(fun, samples, ...) 
  }
  \arguments{
    \item{n}{The number of samples}
    \item{jmarginal}{A marginal object given  either by a \code{inla} object
      or \code{result$selection}}
+   \item{constr}{Optional linear constraints;
+                 see \code{?INLA::f} and argument \code{extraconstr}}
    \item{fun}{A function which is evaluated for each sample, similar to
               \code{inla.posterior.sample.eval}: please see the documentation
               for this functions for details. }
