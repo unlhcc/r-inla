@@ -4,15 +4,16 @@
 %%
 \name{inla.prune}
 \alias{inla.prune}
+\alias{prune}
 
 \title{Prune the INLA-package}
-
-\description{Prune the INLA-package by removing binaries not supported by the running OS}
-
+\description{Prune the INLA-package by deleting binary files not supported by the running OS}
 \usage{
-inla.prune()
+inla.prune(ask = TRUE)
 }
 \arguments{
+\item{ask}{Logical. If TRUE, then ask for user confirmation before deleting.
+           If FALSE, then delete without user confirmation.}
 }
 \value{No value is returned.}
 \author{Havard Rue \email{hrue@r-inla.org}}
