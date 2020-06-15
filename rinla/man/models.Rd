@@ -5866,6 +5866,7 @@ inla.models()
 						\item{Properties:}{
 							\describe{
 								\item{doc = }{`Logit link with sensitivity and specificity'}
+								\item{status = }{`disabled'}
 								\item{pdf = }{`NA'}
 							 }
 						 }
