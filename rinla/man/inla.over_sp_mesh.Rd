@@ -32,7 +32,7 @@ obj <- sp::SpatialPolygons(list(Polygons(list(Polygon(rbind(c(0,0),
                                                             c(50,50),
                                                             c(0,50)))),
                                          ID=1)),
-                           proj4string = inla.CRS("longlat"))
+                           proj4string = inla.CRS("longlat_globe"))
 mesh <- inla.mesh.create(globe = 2, crs = inla.CRS("sphere"))
 
 ## 3 vertices found in the polygon
@@ -43,11 +43,11 @@ inla.over_sp_mesh(obj, mesh)
 
 ## Multiple transformations can lead to slightly different results due to edge cases
 ## 4 triangles found in the polygon
-inla.over_sp_mesh(obj, inla.spTransform(mesh, CRSobj=inla.CRS("mollweide")), ignore.CRS = FALSE)
+inla.over_sp_mesh(obj, inla.spTransform(mesh, CRSobj=inla.CRS("mollweide_norm")), ignore.CRS = FALSE)
 
 ## Ignoring mismatching coordinate systems is rarely useful
 ## 20 triangles "found in" the polygon
-inla.over_sp_mesh(obj, inla.spTransform(mesh, CRSobj=inla.CRS("mollweide")), ignore.CRS = TRUE)
+inla.over_sp_mesh(obj, inla.spTransform(mesh, CRSobj=inla.CRS("mollweide_norm")), ignore.CRS = TRUE)
 
 }
 \author{
