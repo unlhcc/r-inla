@@ -24,7 +24,7 @@
   }
   \subsection{BUG FIXES}{
     \itemize{
-      \item
+      \item Improved WKT support for PROJ6/GDAL3
     }
   }
 }

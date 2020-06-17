@@ -13,17 +13,20 @@ inla.as.wkt.wkt_tree(x, pretty = FALSE, ...)
 
 inla.wkt_tree_get_item(x, item, duplicate = 1)
 
-inla.wkt_tree_set_item(x, item_tree)
+inla.wkt_tree_set_item(x, item_tree, duplicate = 1)
 }
 \arguments{
 \item{x}{A WKT2 string, or a \code{wkt_tree} list structure}
 
 \item{\dots}{Unused}
 
-\item{item}{An item label identifying a parameter item entry}
+\item{item}{character vector with item labels identifying a parameter item
+entry.}
 
-\item{duplicate}{For items that have more than one version, \code{duplicate}
+\item{duplicate}{For items that have more than one match, \code{duplicate}
 indicates the index number of the desired version. Default: 1}
+
+\item{item_tree}{An item tree identifying a parameter item entry}
 }
 \description{
 Conversion between WKT and a tree representation
