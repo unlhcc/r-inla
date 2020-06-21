@@ -60,3 +60,4 @@ syntax: regexp
 ^tutorials/spde/auto/.*$
 ^tutorials/spde/.*\.RData$
 
+^rinla/.Rproj.user/
