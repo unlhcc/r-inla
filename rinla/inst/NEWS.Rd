@@ -27,6 +27,16 @@
   }
 }
 
+\section{CHANGES IN VERSION 20.06.22}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Improve some code in the PARDISO interface
+      \item Improved the computation of the third derivative
+      in the log likelihood.
+    }
+  }
+}
+
 
 
 \section{CHANGES IN VERSION 20.06.18}{
